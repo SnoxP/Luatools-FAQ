@@ -62,6 +62,7 @@ interface FaqContextType {
   isAdmin: boolean;
   isAuthReady: boolean;
   login: (email?: string, password?: string) => Promise<void>;
+  signup: (email?: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -184,6 +185,20 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const signup = async (email?: string, password?: string) => {
+    try {
+      if (!email || !password) throw new Error("Email and password required");
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        email: email,
+        role: 'user'
+      });
+    } catch (error) {
+      console.error("Signup failed:", error);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -194,7 +209,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <FaqContext.Provider value={{ faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, logout }}>
+    <FaqContext.Provider value={{ faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, signup, logout }}>
       {children}
     </FaqContext.Provider>
   );

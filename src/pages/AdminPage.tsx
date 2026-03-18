@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useFaq } from '../context/FaqContext';
-import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2 } from 'lucide-react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
+import { db, collection, getDocs, doc, updateDoc } from '../firebase';
 
 export default function AdminPage() {
-  const { faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, logout } = useFaq();
+  const { faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, signup, logout } = useFaq();
   
   // Local state for editing
   const [localData, setLocalData] = useState<FaqCategory[]>([]);
@@ -13,6 +14,11 @@ export default function AdminPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  
+  const [activeTab, setActiveTab] = useState<'faq' | 'users'>('faq');
+  const [usersList, setUsersList] = useState<{id: string, email: string, role: string}[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   // Sync local data when faqData changes (e.g., loaded from Firestore)
   useEffect(() => {
@@ -20,17 +26,55 @@ export default function AdminPage() {
     setExpandedCategories(new Set(faqData.map(c => c.id)));
   }, [faqData]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isAdmin && activeTab === 'users') {
+      fetchUsers();
+    }
+  }, [isAdmin, activeTab]);
+
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const snapshot = await getDocs(collection(db, 'users'));
+      const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      setUsersList(users);
+    } catch (err) {
+      console.error("Error fetching users", err);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const toggleUserRole = async (userId: string, currentRole: string) => {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    try {
+      await updateDoc(doc(db, 'users', userId), { role: newRole });
+      setUsersList(usersList.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (err) {
+      console.error("Error updating role", err);
+      alert("Erro ao atualizar permissão.");
+    }
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     try {
-      await login(email, password);
+      if (isLoginMode) {
+        await login(email, password);
+      } else {
+        await signup(email, password);
+      }
     } catch (err: any) {
-      console.error("Login failed", err);
+      console.error("Auth failed", err);
       if (err.message === 'auth/operation-not-allowed') {
         setLoginError('O login com E-mail e Senha não está ativado no Firebase. Por favor, ative-o no console do Firebase.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setLoginError('Este e-mail já está em uso.');
+      } else if (err.code === 'auth/weak-password') {
+        setLoginError('A senha deve ter pelo menos 6 caracteres.');
       } else {
-        setLoginError('Credenciais inválidas.');
+        setLoginError(isLoginMode ? 'Credenciais inválidas.' : 'Erro ao criar conta.');
       }
     }
   };
@@ -138,12 +182,12 @@ export default function AdminPage() {
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl text-center">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Acesso Restrito</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">{isLoginMode ? 'Acesso Restrito' : 'Criar Conta'}</h2>
             <p className="text-zinc-400 text-sm">Área exclusiva para administradores do LuaTools.</p>
             <p className="text-indigo-400 text-sm mt-2 font-medium">Caso seja cargo Helper ou +, contate o SnoxP718 para adicioná-lo ao site.</p>
           </div>
           
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-4">
             <div>
               <input
                 type="email"
@@ -162,6 +206,7 @@ export default function AdminPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
                 required
+                minLength={6}
               />
             </div>
             {loginError && <p className="text-red-500 text-sm text-left">{loginError}</p>}
@@ -169,9 +214,21 @@ export default function AdminPage() {
               type="submit"
               className="w-full bg-indigo-600 text-white font-bold rounded-xl px-4 py-3 hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
             >
-              Entrar
+              {isLoginMode ? 'Entrar' : 'Criar Conta'}
             </button>
           </form>
+          
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => {
+                setIsLoginMode(!isLoginMode);
+                setLoginError('');
+              }}
+              className="text-zinc-400 hover:text-white text-sm transition-colors"
+            >
+              {isLoginMode ? 'Não tem uma conta? Criar agora' : 'Já tem uma conta? Entrar'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -202,8 +259,8 @@ export default function AdminPage() {
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Editor Visual de FAQ</h1>
-            <p className="text-zinc-400">Edite as perguntas e respostas de forma fácil. As alterações refletem imediatamente no site e no Chatbot.</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Painel de Administração</h1>
+            <p className="text-zinc-400">Gerencie o conteúdo e os usuários do sistema.</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <button
@@ -213,35 +270,57 @@ export default function AdminPage() {
             >
               <LogOut className="w-4 h-4" />
             </button>
-            <button
-              onClick={handleReset}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors border border-zinc-700"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Restaurar Padrão
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saveStatus === 'saving'}
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
-                saveStatus === 'success' ? 'bg-emerald-600 text-white' :
-                saveStatus === 'error' ? 'bg-red-600 text-white' :
-                'bg-indigo-600 text-white hover:bg-indigo-500'
-              }`}
-            >
-              {saveStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
-               saveStatus === 'error' ? <AlertTriangle className="w-4 h-4" /> :
-               <Save className="w-4 h-4" />}
-              {saveStatus === 'saving' ? 'Salvando...' :
-               saveStatus === 'success' ? 'Salvo!' :
-               saveStatus === 'error' ? 'Erro ao Salvar' :
-               'Salvar Alterações'}
-            </button>
+            {activeTab === 'faq' && (
+              <>
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors border border-zinc-700"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Restaurar Padrão
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saveStatus === 'saving'}
+                  className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
+                    saveStatus === 'success' ? 'bg-emerald-600 text-white' :
+                    saveStatus === 'error' ? 'bg-red-600 text-white' :
+                    'bg-indigo-600 text-white hover:bg-indigo-500'
+                  }`}
+                >
+                  {saveStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
+                   saveStatus === 'error' ? <AlertTriangle className="w-4 h-4" /> :
+                   <Save className="w-4 h-4" />}
+                  {saveStatus === 'saving' ? 'Salvando...' :
+                   saveStatus === 'success' ? 'Salvo!' :
+                   saveStatus === 'error' ? 'Erro ao Salvar' :
+                   'Salvar Alterações'}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="space-y-6">
-          {localData.map((category) => (
+        <div className="flex border-b border-zinc-800 mb-8">
+          <button
+            onClick={() => setActiveTab('faq')}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'faq' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            Gerenciar FAQ
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'users' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            <Users className="w-4 h-4" />
+            Usuários
+          </button>
+        </div>
+
+        {activeTab === 'faq' ? (
+          <div className="space-y-6">
+            {localData.map((category) => (
             <div key={category.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
               {/* Category Header */}
               <div className="bg-zinc-800/50 px-4 py-4 border-b border-zinc-800 flex items-center justify-between">
@@ -319,6 +398,56 @@ export default function AdminPage() {
             Adicionar Nova Categoria
           </button>
         </div>
+        ) : (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-white mb-4">Gerenciar Usuários</h2>
+              {isLoadingUsers ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-800 text-zinc-400 text-sm">
+                        <th className="py-3 px-4 font-medium">E-mail</th>
+                        <th className="py-3 px-4 font-medium">Cargo</th>
+                        <th className="py-3 px-4 font-medium text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usersList.map(u => (
+                        <tr key={u.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                          <td className="py-3 px-4 text-zinc-300">{u.email}</td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
+                              {u.role === 'admin' ? 'Admin' : 'Membro'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => toggleUserRole(u.id, u.role)}
+                              disabled={u.email === 'pedronobreneto@gmail.com'}
+                              className="text-sm px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {u.role === 'admin' ? 'Remover Admin' : 'Tornar Admin'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {usersList.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="py-8 text-center text-zinc-500">
+                            Nenhum usuário encontrado.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
