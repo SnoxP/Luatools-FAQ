@@ -4,7 +4,20 @@ import { MessageSquare, X, Send, Bot, User, Loader2, AlertCircle } from 'lucide-
 import { GoogleGenAI } from '@google/genai';
 import { useFaq } from '../context/FaqContext';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (!aiInstance) {
+    // Try process.env first (AI Studio), then fallback to VITE_ (Vercel)
+    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY is missing. Chatbot will not work.");
+      return null;
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+};
 
 interface Message {
   id: string;
@@ -56,6 +69,17 @@ export default function Chatbot() {
       3. Seja claro e direto.
       4. Sugira 1 ou 2 perguntas relacionadas no final.
       5. Formate as respostas com quebras de linha e emojis para facilitar a leitura.`;
+
+      const ai = getAI();
+      if (!ai) {
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          role: 'model',
+          text: '⚠️ Erro de Configuração: A chave da API do Gemini não foi encontrada. Se você está hospedando este site na Vercel, certifique-se de adicionar a variável de ambiente VITE_GEMINI_API_KEY.'
+        }]);
+        setIsLoading(false);
+        return;
+      }
 
       const chat = ai.chats.create({
         model: 'gemini-3-flash-preview',
