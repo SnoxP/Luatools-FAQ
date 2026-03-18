@@ -160,12 +160,18 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (username.toLowerCase() === 'snoxp718' && password === 'M4d4g4sc4r718.') {
                try {
                  await createUserWithEmailAndPassword(auth, email, password);
-               } catch (createError) {
+               } catch (createError: any) {
+                 console.error("Create user error:", createError);
+                 if (createError.code === 'auth/operation-not-allowed') {
+                   throw new Error('auth/operation-not-allowed');
+                 }
                  throw error;
                }
             } else {
                throw error;
             }
+          } else if (error.code === 'auth/operation-not-allowed') {
+            throw new Error('auth/operation-not-allowed');
           } else {
             throw error;
           }

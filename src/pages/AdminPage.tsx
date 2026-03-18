@@ -27,7 +27,11 @@ export default function AdminPage() {
       await login(username, password);
     } catch (err: any) {
       console.error("Login failed", err);
-      setLoginError('Credenciais inválidas.');
+      if (err.message === 'auth/operation-not-allowed') {
+        setLoginError('O login com E-mail e Senha não está ativado no Firebase. Por favor, ative-o no console do Firebase.');
+      } else {
+        setLoginError('Credenciais inválidas.');
+      }
     }
   };
 
