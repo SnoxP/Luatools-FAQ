@@ -61,7 +61,7 @@ interface FaqContextType {
   user: User | null;
   isAdmin: boolean;
   isAuthReady: boolean;
-  login: (username?: string, password?: string) => Promise<void>;
+  login: (email?: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -80,7 +80,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       if (currentUser) {
         // Check if user is admin
-        if (currentUser.email === 'snoxp718@admin.luatools.com') {
+        if (currentUser.email === 'pedronobreneto@gmail.com') {
           setIsAdmin(true);
         } else {
           try {
@@ -149,15 +149,14 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await updateFaqData(defaultFaq);
   };
 
-  const login = async (username?: string, password?: string) => {
+  const login = async (email?: string, password?: string) => {
     try {
-      if (username && password) {
-        const email = `${username.toLowerCase()}@admin.luatools.com`;
+      if (email && password) {
         try {
           await signInWithEmailAndPassword(auth, email, password);
         } catch (error: any) {
           if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-            if (username.toLowerCase() === 'snoxp718' && password === 'M4d4g4sc4r718.') {
+            if (email.toLowerCase() === 'pedronobreneto@gmail.com' && password === 'O12S2345.') {
                try {
                  await createUserWithEmailAndPassword(auth, email, password);
                } catch (createError: any) {
@@ -177,7 +176,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
       } else {
-        throw new Error("Username and password required");
+        throw new Error("Email and password required");
       }
     } catch (error) {
       console.error("Login failed:", error);

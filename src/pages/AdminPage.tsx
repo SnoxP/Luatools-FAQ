@@ -10,7 +10,7 @@ export default function AdminPage() {
   const [localData, setLocalData] = useState<FaqCategory[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -24,7 +24,7 @@ export default function AdminPage() {
     e.preventDefault();
     setLoginError('');
     try {
-      await login(username, password);
+      await login(email, password);
     } catch (err: any) {
       console.error("Login failed", err);
       if (err.message === 'auth/operation-not-allowed') {
@@ -140,15 +140,16 @@ export default function AdminPage() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white mb-2">Acesso Restrito</h2>
             <p className="text-zinc-400 text-sm">Área exclusiva para administradores do LuaTools.</p>
+            <p className="text-indigo-400 text-sm mt-2 font-medium">Caso seja cargo Helper ou +, contate o SnoxP718 para adicioná-lo ao site.</p>
           </div>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <input
-                type="text"
-                placeholder="Nome de Usuário"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                placeholder="E-mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
                 required
               />
