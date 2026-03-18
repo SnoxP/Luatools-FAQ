@@ -21,7 +21,7 @@ export default function Layout() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
               <Link to="/" className="flex items-center gap-2 group">
-                <img src="https://i.ibb.co/YF6rWDKK/image.png" alt="LuaTools Logo" className="w-8 h-8 rounded-lg object-cover" referrerPolicy="no-referrer" />
+                <img src="https://i.ibb.co/PZ9nPk1f/image.png" alt="LuaTools Logo" className="w-8 h-8 rounded-lg object-cover" referrerPolicy="no-referrer" />
                 <span className="text-xl font-bold tracking-tight text-white">LuaTools</span>
               </Link>
             </div>
@@ -122,7 +122,7 @@ export default function Layout() {
       <footer className="bg-zinc-950 border-t border-zinc-900 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
-            <img src="https://i.ibb.co/YF6rWDKK/image.png" alt="LuaTools Logo" className="w-6 h-6 rounded object-cover" referrerPolicy="no-referrer" />
+            <img src="https://i.ibb.co/PZ9nPk1f/image.png" alt="LuaTools Logo" className="w-6 h-6 rounded object-cover" referrerPolicy="no-referrer" />
             <span className="text-zinc-400 text-sm">© {new Date().getFullYear()} LuaTools. Todos os direitos reservados.</span>
           </div>
           <div className="flex items-center gap-4 text-sm text-zinc-500">

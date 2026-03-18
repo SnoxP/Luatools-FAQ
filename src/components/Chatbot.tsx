@@ -9,7 +9,7 @@ let aiInstance: GoogleGenAI | null = null;
 const getAI = () => {
   if (!aiInstance) {
     // Try process.env first (AI Studio), then fallback to VITE_ (Vercel)
-    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
       console.error("GEMINI_API_KEY is missing. Chatbot will not work.");
       return null;

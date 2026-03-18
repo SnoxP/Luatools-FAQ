@@ -1,34 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFaq } from '../context/FaqContext';
-import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2 } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 
 export default function AdminPage() {
-  const { faqData, updateFaqData, resetToDefault } = useFaq();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, logout } = useFaq();
   
   // Local state for editing
-  const [localData, setLocalData] = useState<FaqCategory[]>(JSON.parse(JSON.stringify(faqData)));
+  const [localData, setLocalData] = useState<FaqCategory[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(localData.map(c => c.id)));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Sync local data when faqData changes (e.g., loaded from Firestore)
+  useEffect(() => {
+    setLocalData(JSON.parse(JSON.stringify(faqData)));
+    setExpandedCategories(new Set(faqData.map(c => c.id)));
+  }, [faqData]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'admin123') {
-      setIsAuthenticated(true);
-      setError('');
-      setLocalData(JSON.parse(JSON.stringify(faqData)));
-    } else {
-      setError('Senha incorreta.');
+    try {
+      await login();
+    } catch (err) {
+      console.error("Login failed", err);
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
       setSaveStatus('saving');
-      updateFaqData(localData);
+      await updateFaqData(localData);
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
@@ -38,12 +39,16 @@ export default function AdminPage() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (window.confirm('Tem certeza que deseja restaurar o FAQ para o padrão original? Todas as alterações não salvas serão perdidas.')) {
-      resetToDefault();
-      // Need to wait for context to update, or just use defaultFaq directly
-      // For simplicity, we'll just reload the page to get the fresh context
-      window.location.reload();
+      try {
+        await resetToDefault();
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao restaurar padrão");
+      }
     }
   };
 
@@ -111,40 +116,55 @@ export default function AdminPage() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-          <div className="text-center mb-8">
+        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl text-center">
+          <div className="mb-8">
             <h2 className="text-2xl font-bold text-white mb-2">Acesso Restrito</h2>
             <p className="text-zinc-400 text-sm">Área exclusiva para administradores do LuaTools.</p>
           </div>
           
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-zinc-300 mb-2">
-                Senha de Administrador
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                placeholder="Digite a senha..."
-              />
-              {error && <p className="mt-2 text-sm text-red-400 flex items-center gap-1"><AlertTriangle className="w-4 h-4" />{error}</p>}
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 text-white font-medium rounded-xl px-4 py-3 hover:bg-indigo-500 transition-colors"
-            >
-              Entrar
-            </button>
-          </form>
-          <div className="mt-6 text-center text-xs text-zinc-600">
-            Dica: A senha padrão é admin123
-          </div>
+          <button
+            onClick={handleLogin}
+            className="w-full bg-white text-zinc-950 font-bold rounded-xl px-4 py-3 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+            </svg>
+            Entrar com Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Acesso Negado</h2>
+          <p className="text-zinc-400 text-sm mb-6">
+            Sua conta ({user.email}) não tem permissão de administrador.
+          </p>
+          <button
+            onClick={logout}
+            className="w-full bg-zinc-800 text-white font-medium rounded-xl px-4 py-3 hover:bg-zinc-700 transition-colors"
+          >
+            Sair e tentar outra conta
+          </button>
         </div>
       </div>
     );
@@ -158,7 +178,14 @@ export default function AdminPage() {
             <h1 className="text-3xl font-bold text-white mb-2">Editor Visual de FAQ</h1>
             <p className="text-zinc-400">Edite as perguntas e respostas de forma fácil. As alterações refletem imediatamente no site e no Chatbot.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 text-zinc-400 hover:text-white transition-colors border border-zinc-800"
+              title="Sair"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
             <button
               onClick={handleReset}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors border border-zinc-700"
