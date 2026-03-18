@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFaq } from '../context/FaqContext';
 import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
-import { db, collection, getDocs, doc, updateDoc } from '../firebase';
+import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
 
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -19,7 +19,7 @@ export default function AdminPage() {
   const [isLoginMode, setIsLoginMode] = useState(true);
   
   const [activeTab, setActiveTab] = useState<'faq' | 'users' | 'fix'>('faq');
-  const [usersList, setUsersList] = useState<{id: string, email: string, role: string}[]>([]);
+  const [usersList, setUsersList] = useState<{id: string, email: string, role: string, isOnline?: boolean, lastActive?: number}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   // Fix state
@@ -34,13 +34,27 @@ export default function AdminPage() {
   }, [faqData]);
 
   useEffect(() => {
+    let unsubscribeUsers: (() => void) | undefined;
+
     if (isAdmin) {
       if (activeTab === 'users') {
-        fetchUsers();
+        setIsLoadingUsers(true);
+        unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+          const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+          setUsersList(users);
+          setIsLoadingUsers(false);
+        }, (err) => {
+          console.error("Error fetching users", err);
+          setIsLoadingUsers(false);
+        });
       } else if (activeTab === 'fix') {
         fetchFixData();
       }
     }
+
+    return () => {
+      if (unsubscribeUsers) unsubscribeUsers();
+    };
   }, [isAdmin, activeTab]);
 
   const fetchFixData = async () => {
@@ -90,19 +104,6 @@ export default function AdminPage() {
         setSaveFixStatus('error');
         setTimeout(() => setSaveFixStatus('idle'), 3000);
       }
-    }
-  };
-
-  const fetchUsers = async () => {
-    setIsLoadingUsers(true);
-    try {
-      const snapshot = await getDocs(collection(db, 'users'));
-      const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      setUsersList(users);
-    } catch (err) {
-      console.error("Error fetching users", err);
-    } finally {
-      setIsLoadingUsers(false);
     }
   };
 
@@ -541,17 +542,26 @@ export default function AdminPage() {
                       <tr className="border-b border-zinc-800 text-zinc-400 text-sm">
                         <th className="py-3 px-4 font-medium">E-mail</th>
                         <th className="py-3 px-4 font-medium">Cargo</th>
+                        <th className="py-3 px-4 font-medium">Status</th>
                         <th className="py-3 px-4 font-medium text-right">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {usersList.map(u => (
+                      {usersList.map(u => {
+                        const isOnline = u.isOnline && u.lastActive && (Date.now() - u.lastActive < 120000);
+                        return (
                         <tr key={u.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
                           <td className="py-3 px-4 text-zinc-300">{u.email}</td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
                               {u.role === 'admin' ? 'Admin' : 'Membro'}
                             </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-zinc-600'}`}></span>
+                              <span className="text-sm text-zinc-400">{isOnline ? 'Online' : 'Offline'}</span>
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-right">
                             <button
@@ -563,10 +573,10 @@ export default function AdminPage() {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                       {usersList.length === 0 && (
                         <tr>
-                          <td colSpan={3} className="py-8 text-center text-zinc-500">
+                          <td colSpan={4} className="py-8 text-center text-zinc-500">
                             Nenhum usuário encontrado.
                           </td>
                         </tr>

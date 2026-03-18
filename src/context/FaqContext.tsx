@@ -101,6 +101,43 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => unsubscribe();
   }, []);
 
+  // Presence Tracker
+  useEffect(() => {
+    if (!user) return;
+
+    const userRef = doc(db, 'users', user.uid);
+    
+    const setOnline = async () => {
+      try {
+        await setDoc(userRef, { 
+          isOnline: true, 
+          lastActive: Date.now(),
+          email: user.email // ensure email is there
+        }, { merge: true });
+      } catch (error) {
+        console.error("Error setting online status", error);
+      }
+    };
+
+    setOnline();
+
+    const interval = setInterval(() => {
+      setDoc(userRef, { lastActive: Date.now() }, { merge: true }).catch(console.error);
+    }, 60000);
+
+    const handleBeforeUnload = () => {
+      setDoc(userRef, { isOnline: false, lastActive: Date.now() }, { merge: true }).catch(console.error);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      setDoc(userRef, { isOnline: false, lastActive: Date.now() }, { merge: true }).catch(console.error);
+    };
+  }, [user]);
+
   // Data Listener
   useEffect(() => {
     if (!isAuthReady) return;
