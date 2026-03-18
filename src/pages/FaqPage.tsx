@@ -122,7 +122,7 @@ export default function FaqPage() {
                                 <span className="text-xs font-mono text-zinc-500 bg-zinc-950 px-2 py-1 rounded shrink-0">
                                   {item.id}
                                 </span>
-                                <span className="font-medium text-white text-lg">
+                                <span className="font-medium text-white text-lg break-words">
                                   {searchTerm ? highlightText(item.question, searchTerm) : item.question}
                                 </span>
                               </div>
@@ -142,7 +142,7 @@ export default function FaqPage() {
                                   transition={{ duration: 0.2 }}
                                 >
                                   <div className="px-6 pb-6 pt-2 text-zinc-300 prose prose-invert max-w-none prose-p:leading-relaxed prose-a:text-indigo-400 hover:prose-a:text-indigo-300">
-                                    <div className="whitespace-pre-wrap font-sans text-sm md:text-base">
+                                    <div className="whitespace-pre-wrap font-sans text-sm md:text-base break-words">
                                       {item.answer}
                                     </div>
                                   </div>

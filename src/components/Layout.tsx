@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Menu, X, MessageSquare, ShieldAlert, Home, Settings } from 'lucide-react';
+import { Menu, X, MessageSquare, ShieldAlert, Home, Settings, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Layout() {
@@ -10,7 +10,8 @@ export default function Layout() {
   const navLinks = [
     { name: 'Início', path: '/', icon: <Home className="w-4 h-4 mr-2" /> },
     { name: 'FAQ', path: '/faq', icon: <MessageSquare className="w-4 h-4 mr-2" /> },
-    { name: 'Admin', path: '/admin', icon: <Settings className="w-4 h-4 mr-2" /> },
+    { name: 'Fix', path: '/fix', icon: <Wrench className="w-4 h-4 mr-2" /> },
+    { name: 'Login', path: '/admin', icon: <Settings className="w-4 h-4 mr-2" /> },
   ];
 
   return (
@@ -127,8 +128,9 @@ export default function Layout() {
           </div>
           <div className="flex items-center gap-4 text-sm text-zinc-500">
             <Link to="/faq" className="hover:text-zinc-300 transition-colors">FAQ</Link>
+            <Link to="/fix" className="hover:text-zinc-300 transition-colors">Fix</Link>
             <a href="https://discord.gg/luatools" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-300 transition-colors">Discord</a>
-            <Link to="/admin" className="hover:text-zinc-300 transition-colors">Admin</Link>
+            <Link to="/admin" className="hover:text-zinc-300 transition-colors">Login</Link>
           </div>
         </div>
       </footer>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useFaq } from '../context/FaqContext';
-import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare } from 'lucide-react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc } from '../firebase';
+
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 export default function AdminPage() {
   const { faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, signup, logout } = useFaq();
@@ -16,9 +18,14 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'faq' | 'users'>('faq');
+  const [activeTab, setActiveTab] = useState<'faq' | 'users' | 'fix'>('faq');
   const [usersList, setUsersList] = useState<{id: string, email: string, role: string}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // Fix state
+  const [fixData, setFixData] = useState({ title: '', description: '', version: '', downloadUrl: '' });
+  const [isLoadingFix, setIsLoadingFix] = useState(false);
+  const [saveFixStatus, setSaveFixStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
   // Sync local data when faqData changes (e.g., loaded from Firestore)
   useEffect(() => {
@@ -27,10 +34,64 @@ export default function AdminPage() {
   }, [faqData]);
 
   useEffect(() => {
-    if (isAdmin && activeTab === 'users') {
-      fetchUsers();
+    if (isAdmin) {
+      if (activeTab === 'users') {
+        fetchUsers();
+      } else if (activeTab === 'fix') {
+        fetchFixData();
+      }
     }
   }, [isAdmin, activeTab]);
+
+  const fetchFixData = async () => {
+    setIsLoadingFix(true);
+    try {
+      const docSnap = await getDoc(doc(db, 'content', 'game_fix'));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setFixData({
+          title: data.title || '',
+          description: data.description || '',
+          version: data.version || '',
+          downloadUrl: data.downloadUrl || ''
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching fix data", err);
+    } finally {
+      setIsLoadingFix(false);
+    }
+  };
+
+  const saveFixData = async () => {
+    setSaveFixStatus('saving');
+    try {
+      const now = new Date().toLocaleDateString('pt-BR');
+      await updateDoc(doc(db, 'content', 'game_fix'), {
+        ...fixData,
+        updatedAt: now
+      });
+      setSaveFixStatus('success');
+      setTimeout(() => setSaveFixStatus('idle'), 3000);
+    } catch (err) {
+      console.error("Error saving fix data", err);
+      // If document doesn't exist, we might need setDoc instead of updateDoc, 
+      // but assuming it's created or we can handle it. Let's use setDoc just in case.
+      try {
+        const { setDoc } = await import('../firebase');
+        const now = new Date().toLocaleDateString('pt-BR');
+        await setDoc(doc(db, 'content', 'game_fix'), {
+          ...fixData,
+          updatedAt: now
+        });
+        setSaveFixStatus('success');
+        setTimeout(() => setSaveFixStatus('idle'), 3000);
+      } catch (e) {
+        setSaveFixStatus('error');
+        setTimeout(() => setSaveFixStatus('idle'), 3000);
+      }
+    }
+  };
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
@@ -166,6 +227,46 @@ export default function AdminPage() {
         }
         return cat;
       }));
+    }
+  };
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const sourceCategoryId = result.source.droppableId;
+    const destinationCategoryId = result.destination.droppableId;
+
+    if (sourceCategoryId !== destinationCategoryId) {
+      // Moving between categories (optional, can be disabled if not needed)
+      const sourceCategoryIndex = localData.findIndex(cat => cat.id === sourceCategoryId);
+      const destCategoryIndex = localData.findIndex(cat => cat.id === destinationCategoryId);
+      
+      if (sourceCategoryIndex === -1 || destCategoryIndex === -1) return;
+
+      const newLocalData = [...localData];
+      const sourceItems = [...newLocalData[sourceCategoryIndex].items];
+      const destItems = [...newLocalData[destCategoryIndex].items];
+
+      const [movedItem] = sourceItems.splice(result.source.index, 1);
+      destItems.splice(result.destination.index, 0, movedItem);
+
+      newLocalData[sourceCategoryIndex] = { ...newLocalData[sourceCategoryIndex], items: sourceItems };
+      newLocalData[destCategoryIndex] = { ...newLocalData[destCategoryIndex], items: destItems };
+
+      setLocalData(newLocalData);
+    } else {
+      // Reordering within the same category
+      const categoryIndex = localData.findIndex(cat => cat.id === sourceCategoryId);
+      if (categoryIndex === -1) return;
+
+      const newLocalData = [...localData];
+      const items = [...newLocalData[categoryIndex].items];
+      
+      const [reorderedItem] = items.splice(result.source.index, 1);
+      items.splice(result.destination.index, 0, reorderedItem);
+
+      newLocalData[categoryIndex] = { ...newLocalData[categoryIndex], items };
+      setLocalData(newLocalData);
     }
   };
 
@@ -316,89 +417,118 @@ export default function AdminPage() {
             <Users className="w-4 h-4" />
             Usuários
           </button>
+          <button
+            onClick={() => setActiveTab('fix')}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'fix' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            <Wrench className="w-4 h-4" />
+            Gerenciar Fix
+          </button>
         </div>
 
         {activeTab === 'faq' ? (
-          <div className="space-y-6">
-            {localData.map((category) => (
-            <div key={category.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
-              {/* Category Header */}
-              <div className="bg-zinc-800/50 px-4 py-4 border-b border-zinc-800 flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
-                  <button onClick={() => toggleCategory(category.id)} className="text-zinc-400 hover:text-white transition-colors">
-                    {expandedCategories.has(category.id) ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                  </button>
-                  <input
-                    type="text"
-                    value={category.title}
-                    onChange={(e) => updateCategoryTitle(category.id, e.target.value)}
-                    className="bg-transparent text-lg font-bold text-white focus:outline-none focus:border-b border-indigo-500 w-full max-w-md px-1"
-                    placeholder="Nome da Categoria"
-                  />
-                </div>
-                <button
-                  onClick={() => deleteCategory(category.id)}
-                  className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-400/10"
-                  title="Excluir Categoria"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Category Items */}
-              {expandedCategories.has(category.id) && (
-                <div className="p-4 space-y-4">
-                  {category.items.map((item) => (
-                    <div key={item.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex gap-4">
-                      <div className="mt-2 text-zinc-600 cursor-grab">
-                        <GripVertical className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 space-y-3">
-                        <input
-                          type="text"
-                          value={item.question}
-                          onChange={(e) => updateItem(category.id, item.id, 'question', e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white font-medium focus:outline-none focus:border-indigo-500 transition-colors"
-                          placeholder="Pergunta..."
-                        />
-                        <textarea
-                          value={item.answer}
-                          onChange={(e) => updateItem(category.id, item.id, 'answer', e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-sm focus:outline-none focus:border-indigo-500 transition-colors min-h-[100px] resize-y"
-                          placeholder="Resposta..."
-                        />
-                      </div>
-                      <button
-                        onClick={() => deleteItem(category.id, item.id)}
-                        className="text-zinc-600 hover:text-red-400 transition-colors p-2 h-fit rounded-lg hover:bg-red-400/10"
-                        title="Excluir Pergunta"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  ))}
-                  
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="space-y-6">
+              {localData.map((category) => (
+              <div key={category.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
+                {/* Category Header */}
+                <div className="bg-zinc-800/50 px-4 py-4 border-b border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <button onClick={() => toggleCategory(category.id)} className="text-zinc-400 hover:text-white transition-colors">
+                      {expandedCategories.has(category.id) ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                    </button>
+                    <input
+                      type="text"
+                      value={category.title}
+                      onChange={(e) => updateCategoryTitle(category.id, e.target.value)}
+                      className="bg-transparent text-lg font-bold text-white focus:outline-none focus:border-b border-indigo-500 w-full max-w-md px-1"
+                      placeholder="Nome da Categoria"
+                    />
+                  </div>
                   <button
-                    onClick={() => addItem(category.id)}
-                    className="w-full py-3 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-400 hover:text-white hover:border-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2 font-medium"
+                    onClick={() => deleteCategory(category.id)}
+                    className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-400/10"
+                    title="Excluir Categoria"
                   >
-                    <Plus className="w-5 h-5" />
-                    Adicionar Nova Pergunta
+                    <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
-              )}
-            </div>
-          ))}
 
-          <button
-            onClick={addCategory}
-            className="w-full py-4 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-400 hover:text-white hover:border-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2 font-medium text-lg"
-          >
-            <Plus className="w-6 h-6" />
-            Adicionar Nova Categoria
-          </button>
-        </div>
-        ) : (
+                {/* Category Items */}
+                {expandedCategories.has(category.id) && (
+                  <Droppable droppableId={category.id}>
+                    {(provided) => (
+                      <div 
+                        className="p-4 space-y-4"
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                      >
+                        {category.items.map((item, index) => (
+                          <Draggable key={item.id} draggableId={item.id} index={index}>
+                            {(provided) => (
+                              <div 
+                                className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex gap-4"
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                              >
+                                <div 
+                                  className="mt-2 text-zinc-600 cursor-grab"
+                                  {...provided.dragHandleProps}
+                                >
+                                  <GripVertical className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                  <input
+                                    type="text"
+                                    value={item.question}
+                                    onChange={(e) => updateItem(category.id, item.id, 'question', e.target.value)}
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+                                    placeholder="Pergunta..."
+                                  />
+                                  <textarea
+                                    value={item.answer}
+                                    onChange={(e) => updateItem(category.id, item.id, 'answer', e.target.value)}
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-sm focus:outline-none focus:border-indigo-500 transition-colors min-h-[100px] resize-y"
+                                    placeholder="Resposta..."
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => deleteItem(category.id, item.id)}
+                                  className="text-zinc-600 hover:text-red-400 transition-colors p-2 h-fit rounded-lg hover:bg-red-400/10"
+                                  title="Excluir Pergunta"
+                                >
+                                  <Trash2 className="w-5 h-5" />
+                                </button>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                        
+                        <button
+                          onClick={() => addItem(category.id)}
+                          className="w-full py-3 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-400 hover:text-white hover:border-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2 font-medium"
+                        >
+                          <Plus className="w-5 h-5" />
+                          Adicionar Nova Pergunta
+                        </button>
+                      </div>
+                    )}
+                  </Droppable>
+                )}
+              </div>
+            ))}
+
+            <button
+              onClick={addCategory}
+              className="w-full py-4 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-400 hover:text-white hover:border-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2 font-medium text-lg"
+            >
+              <Plus className="w-6 h-6" />
+              Adicionar Nova Categoria
+            </button>
+          </div>
+        </DragDropContext>
+        ) : activeTab === 'users' ? (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
             <div className="p-6">
               <h2 className="text-xl font-bold text-white mb-4">Gerenciar Usuários</h2>
@@ -443,6 +573,77 @@ export default function AdminPage() {
                       )}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Gerenciar Fix</h2>
+                <button
+                  onClick={saveFixData}
+                  disabled={saveFixStatus === 'saving'}
+                  className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
+                    saveFixStatus === 'success' ? 'bg-emerald-600 text-white' :
+                    saveFixStatus === 'error' ? 'bg-red-600 text-white' :
+                    'bg-indigo-600 text-white hover:bg-indigo-500'
+                  }`}
+                >
+                  {saveFixStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
+                   saveFixStatus === 'error' ? <AlertTriangle className="w-4 h-4" /> :
+                   <Save className="w-4 h-4" />}
+                  {saveFixStatus === 'saving' ? 'Salvando...' :
+                   saveFixStatus === 'success' ? 'Salvo!' :
+                   saveFixStatus === 'error' ? 'Erro ao Salvar' :
+                   'Salvar Fix'}
+                </button>
+              </div>
+              
+              {isLoadingFix ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Título da Correção</label>
+                    <input
+                      type="text"
+                      value={fixData.title}
+                      onChange={(e) => setFixData({ ...fixData, title: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      placeholder="Ex: Correção de Bugs v1.2.0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Versão</label>
+                    <input
+                      type="text"
+                      value={fixData.version}
+                      onChange={(e) => setFixData({ ...fixData, version: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      placeholder="Ex: 1.2.0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Link de Download</label>
+                    <input
+                      type="url"
+                      value={fixData.downloadUrl}
+                      onChange={(e) => setFixData({ ...fixData, downloadUrl: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      placeholder="Ex: https://link-para-o-arquivo.com/fix.zip"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Descrição / Detalhes da Atualização</label>
+                    <textarea
+                      value={fixData.description}
+                      onChange={(e) => setFixData({ ...fixData, description: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors min-h-[150px] resize-y"
+                      placeholder="Descreva o que foi corrigido nesta versão..."
+                    />
+                  </div>
                 </div>
               )}
             </div>
