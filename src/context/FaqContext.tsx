@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { FaqCategory, defaultFaq } from '../data/defaultFaq';
-import { auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot } from '../firebase';
+import { auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot } from '../firebase';
 import { User } from 'firebase/auth';
 
 enum OperationType {
@@ -61,7 +61,7 @@ interface FaqContextType {
   user: User | null;
   isAdmin: boolean;
   isAuthReady: boolean;
-  login: () => Promise<void>;
+  login: (username?: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -80,7 +80,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       if (currentUser) {
         // Check if user is admin
-        if (currentUser.email === 'pedronobreneto27@gmail.com' && currentUser.emailVerified) {
+        if (currentUser.email === 'snoxp718@admin.luatools.com') {
           setIsAdmin(true);
         } else {
           try {
@@ -149,9 +149,30 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await updateFaqData(defaultFaq);
   };
 
-  const login = async () => {
+  const login = async (username?: string, password?: string) => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (username && password) {
+        const email = `${username.toLowerCase()}@admin.luatools.com`;
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+        } catch (error: any) {
+          if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+            if (username.toLowerCase() === 'snoxp718' && password === 'M4d4g4sc4r718.') {
+               try {
+                 await createUserWithEmailAndPassword(auth, email, password);
+               } catch (createError) {
+                 throw error;
+               }
+            } else {
+               throw error;
+            }
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        throw new Error("Username and password required");
+      }
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
