@@ -11,7 +11,6 @@ export default function Layout() {
     { name: 'Início', path: '/', icon: <Home className="w-4 h-4 mr-2" /> },
     { name: 'FAQ', path: '/faq', icon: <MessageSquare className="w-4 h-4 mr-2" /> },
     { name: 'Fix', path: '/fix', icon: <Wrench className="w-4 h-4 mr-2" /> },
-    { name: 'Checkout', path: '/checkout', icon: <Settings className="w-4 h-4 mr-2" /> },
     { name: 'Login', path: '/admin', icon: <Settings className="w-4 h-4 mr-2" /> },
   ];
 

@@ -33,7 +33,7 @@ export default function Chatbot() {
     {
       id: 'welcome',
       role: 'model',
-      text: 'Olá! Sou o assistente virtual do LuaTools. Como posso ajudar você hoje? (Respondo apenas dúvidas baseadas no nosso FAQ oficial).'
+      text: 'Olá! 👋 Sou o assistente virtual do LuaTools. Como posso te ajudar hoje? (Lembrando que minhas respostas são baseadas no nosso FAQ oficial, ok?)'
     }
   ]);
   const [input, setInput] = useState('');
@@ -61,16 +61,17 @@ export default function Chatbot() {
     setIsLoading(true);
 
     try {
-      const systemInstruction = `Você é o assistente virtual do servidor Discord 'LuaTools'.
-      Responda APENAS com base no seguinte FAQ:
+      const systemInstruction = `Você é o assistente virtual amigável do servidor Discord 'LuaTools'.
+      Seu objetivo é ajudar os usuários respondendo dúvidas com base no seguinte FAQ:
       ${JSON.stringify(faqData)}
 
       REGRAS:
-      1. Não invente informações. Se a resposta não estiver no FAQ, diga EXATAMENTE: 'Não encontrei isso no FAQ. Deseja abrir um ticket no Discord?'.
-      2. Sempre cite a seção (ex: 1A, 2B) quando usar uma informação.
-      3. Seja claro e direto.
-      4. Sugira 1 ou 2 perguntas relacionadas no final.
-      5. Formate as respostas com quebras de linha e emojis para facilitar a leitura.`;
+      1. Seja educado, amigável e humano. Se o usuário apenas disser "oi", "olá", "bom dia", etc., responda de forma acolhedora e pergunte como pode ajudar.
+      2. Para dúvidas técnicas, responda APENAS com base no FAQ fornecido. Não invente informações.
+      3. Se a dúvida técnica não estiver no FAQ, responda de forma educada que não encontrou a resposta e sugira abrir um ticket no Discord. Exemplo: "Poxa, não encontrei essa informação no nosso FAQ. Mas não se preocupe! Você pode abrir um ticket no nosso servidor do Discord para a equipe te ajudar melhor."
+      4. Sempre que usar uma informação do FAQ, cite a seção (ex: 1A, 2B).
+      5. Seja claro, direto e use emojis para deixar a conversa mais leve.
+      6. Quando responder a uma dúvida do FAQ, sugira 1 ou 2 perguntas relacionadas no final.`;
 
       const ai = getAI();
       if (!ai) {
@@ -88,7 +89,7 @@ export default function Chatbot() {
           model: 'gemini-3-flash-preview',
           config: {
             systemInstruction,
-            temperature: 0.2, // Low temperature for more deterministic/factual answers
+            temperature: 0.4, // Slightly higher temperature for more natural, human-like responses
           }
         });
       }
