@@ -81,7 +81,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       if (currentUser) {
         // Check if user is admin
-        if (currentUser.email === 'pedronobreneto27@gmail.com') {
+        if (currentUser.email === 'pedronobreneto27@gmail.com' || currentUser.email === 'pedronobreneto@gmail.com') {
           setIsAdmin(true);
         } else {
           try {
@@ -194,7 +194,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           await signInWithEmailAndPassword(auth, email, password);
         } catch (error: any) {
           if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-            if (email.toLowerCase() === 'pedronobreneto27@gmail.com' && password === 'O12S2345.') {
+            if ((email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com') && password === 'O12S2345.') {
                try {
                  await createUserWithEmailAndPassword(auth, email, password);
                } catch (createError: any) {

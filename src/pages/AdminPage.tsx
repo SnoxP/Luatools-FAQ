@@ -585,7 +585,7 @@ export default function AdminPage() {
                           <td className="py-3 px-4 text-right">
                             <button
                               onClick={() => toggleUserRole(u.id, u.role)}
-                              disabled={u.email === 'pedronobreneto27@gmail.com'}
+                              disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com'}
                               className="text-sm px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {u.role === 'admin' ? 'Remover Admin' : 'Tornar Admin'}
