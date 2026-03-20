@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Wrench, Download, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { db, doc, getDoc } from '../firebase';
+import DiscordMarkdown from '../components/DiscordMarkdown';
 
 interface FixData {
   title: string;
@@ -83,9 +84,9 @@ export default function FixPage() {
               <div className="prose prose-invert max-w-none">
                 <h3 className="text-lg font-semibold text-white mb-4">Detalhes da Atualização</h3>
                 <div className="bg-zinc-950 rounded-xl p-6 border border-zinc-800/50">
-                  <p className="text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                  <DiscordMarkdown>
                     {fixData.description}
-                  </p>
+                  </DiscordMarkdown>
                 </div>
               </div>
             </div>

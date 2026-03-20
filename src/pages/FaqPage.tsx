@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { useFaq } from '../context/FaqContext';
+import DiscordMarkdown from '../components/DiscordMarkdown';
 
 export default function FaqPage() {
   const { faqData } = useFaq();
@@ -141,10 +142,10 @@ export default function FaqPage() {
                                   exit={{ height: 0, opacity: 0 }}
                                   transition={{ duration: 0.2 }}
                                 >
-                                  <div className="px-6 pb-6 pt-2 text-zinc-300 prose prose-invert max-w-none prose-p:leading-relaxed prose-a:text-indigo-400 hover:prose-a:text-indigo-300">
-                                    <div className="whitespace-pre-wrap font-sans text-sm md:text-base break-words">
+                                  <div className="px-6 pb-6 pt-2 text-zinc-300">
+                                    <DiscordMarkdown className="text-sm md:text-base break-words">
                                       {item.answer}
-                                    </div>
+                                    </DiscordMarkdown>
                                   </div>
                                 </motion.div>
                               )}

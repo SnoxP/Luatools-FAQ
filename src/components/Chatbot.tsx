@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send, Bot, User, Loader2, AlertCircle } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { useFaq } from '../context/FaqContext';
+import DiscordMarkdown from './DiscordMarkdown';
 
 let aiInstance: GoogleGenAI | null = null;
 
@@ -38,6 +39,7 @@ export default function Chatbot() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -81,20 +83,17 @@ export default function Chatbot() {
         return;
       }
 
-      const chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
-        config: {
-          systemInstruction,
-          temperature: 0.2, // Low temperature for more deterministic/factual answers
-        }
-      });
-
-      // Send chat history
-      for (const msg of messages.slice(1)) { // Skip welcome message
-        await chat.sendMessage({ message: msg.text });
+      if (!chatRef.current) {
+        chatRef.current = ai.chats.create({
+          model: 'gemini-3-flash-preview',
+          config: {
+            systemInstruction,
+            temperature: 0.2, // Low temperature for more deterministic/factual answers
+          }
+        });
       }
 
-      const response = await chat.sendMessage({ message: userText });
+      const response = await chatRef.current.sendMessage({ message: userText });
       
       const newModelMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -178,9 +177,9 @@ export default function Chatbot() {
                         : 'bg-zinc-800 text-zinc-200 rounded-tl-sm'
                     }`}
                   >
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    <DiscordMarkdown className="text-sm leading-relaxed">
                       {msg.text}
-                    </div>
+                    </DiscordMarkdown>
                   </div>
                 </div>
               ))}

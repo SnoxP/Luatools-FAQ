@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
 import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
@@ -21,6 +22,9 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'faq' | 'users' | 'fix'>('faq');
   const [usersList, setUsersList] = useState<{id: string, email: string, role: string, isOnline?: boolean, lastActive?: number}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   // Fix state
   const [fixData, setFixData] = useState({ title: '', description: '', version: '', downloadUrl: '' });
@@ -114,7 +118,6 @@ export default function AdminPage() {
       setUsersList(usersList.map(u => u.id === userId ? { ...u, role: newRole } : u));
     } catch (err) {
       console.error("Error updating role", err);
-      alert("Erro ao atualizar permissão.");
     }
   };
 
@@ -155,16 +158,22 @@ export default function AdminPage() {
   };
 
   const handleReset = async () => {
-    if (window.confirm('Tem certeza que deseja restaurar o FAQ para o padrão original? Todas as alterações não salvas serão perdidas.')) {
-      try {
-        await resetToDefault();
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus('idle'), 3000);
-      } catch (err) {
-        console.error(err);
-        alert("Erro ao restaurar padrão");
+    setConfirmModal({
+      isOpen: true,
+      title: 'Restaurar Padrão',
+      message: 'Tem certeza que deseja restaurar o FAQ para o padrão original? Todas as alterações não salvas serão perdidas.',
+      onConfirm: async () => {
+        try {
+          await resetToDefault();
+          setSaveStatus('success');
+          setTimeout(() => setSaveStatus('idle'), 3000);
+        } catch (err) {
+          console.error(err);
+          setSaveStatus('error');
+          setTimeout(() => setSaveStatus('idle'), 3000);
+        }
       }
-    }
+    });
   };
 
   const toggleCategory = (categoryId: string) => {
@@ -189,9 +198,14 @@ export default function AdminPage() {
   };
 
   const deleteCategory = (categoryId: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta categoria e todas as suas perguntas?')) {
-      setLocalData(localData.filter(cat => cat.id !== categoryId));
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Excluir Categoria',
+      message: 'Tem certeza que deseja excluir esta categoria e todas as suas perguntas?',
+      onConfirm: () => {
+        setLocalData(localData.filter(cat => cat.id !== categoryId));
+      }
+    });
   };
 
   // Item Operations
@@ -221,14 +235,19 @@ export default function AdminPage() {
   };
 
   const deleteItem = (categoryId: string, itemId: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta pergunta?')) {
-      setLocalData(localData.map(cat => {
-        if (cat.id === categoryId) {
-          return { ...cat, items: cat.items.filter(item => item.id !== itemId) };
-        }
-        return cat;
-      }));
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Excluir Pergunta',
+      message: 'Tem certeza que deseja excluir esta pergunta?',
+      onConfirm: () => {
+        setLocalData(localData.map(cat => {
+          if (cat.id === categoryId) {
+            return { ...cat, items: cat.items.filter(item => item.id !== itemId) };
+          }
+          return cat;
+        }));
+      }
+    });
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -566,7 +585,7 @@ export default function AdminPage() {
                           <td className="py-3 px-4 text-right">
                             <button
                               onClick={() => toggleUserRole(u.id, u.role)}
-                              disabled={u.email === 'pedronobreneto@gmail.com'}
+                              disabled={u.email === 'pedronobreneto27@gmail.com'}
                               className="text-sm px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {u.role === 'admin' ? 'Remover Admin' : 'Tornar Admin'}
@@ -660,6 +679,37 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-semibold text-white mb-2">{confirmModal.title}</h3>
+            <p className="text-zinc-400 mb-6">{confirmModal.message}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  confirmModal.onConfirm();
+                  setConfirmModal({ ...confirmModal, isOpen: false });
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+              >
+                Confirmar
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
