@@ -111,6 +111,7 @@ export default function Chatbot() {
           const data = botSnap.data();
           const globalLimit = data.dailyLimit || 100;
           const userLimit = data.userDailyLimit || 10;
+          const rpmLimit = data.rpmLimit || 15;
           const currentGens = data.lastResetDate === today ? (data.dailyGenerations || 0) : 0;
           
           // Check global limit
@@ -124,7 +125,25 @@ export default function Chatbot() {
             return;
           }
 
-          // Check user limit
+          // Check user RPM (Requests Per Minute) limit
+          const now = Date.now();
+          const rpmUsageData = localStorage.getItem('bot_rpm_usage');
+          let rpmUsage: number[] = rpmUsageData ? JSON.parse(rpmUsageData) : [];
+          
+          // Filter out timestamps older than 60 seconds (60000 ms)
+          rpmUsage = rpmUsage.filter(timestamp => now - timestamp < 60000);
+
+          if (rpmUsage.length >= rpmLimit) {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: 'model',
+              text: `⚠️ Você está enviando mensagens rápido demais. O limite é de ${rpmLimit} por minuto. Aguarde um instante.`
+            }]);
+            setIsLoading(false);
+            return;
+          }
+
+          // Check user daily limit
           const userUsageData = localStorage.getItem('bot_usage');
           let userUsage = userUsageData ? JSON.parse(userUsageData) : { date: today, count: 0 };
           
@@ -148,15 +167,20 @@ export default function Chatbot() {
             lastResetDate: today
           });
 
-          // Increment user
+          // Increment user daily
           userUsage.count += 1;
           localStorage.setItem('bot_usage', JSON.stringify(userUsage));
+
+          // Increment user RPM
+          rpmUsage.push(now);
+          localStorage.setItem('bot_rpm_usage', JSON.stringify(rpmUsage));
 
         } else {
           // Create default
           await setDoc(botRef, {
             dailyLimit: 100,
             userDailyLimit: 10,
+            rpmLimit: 15,
             dailyGenerations: 1,
             lastResetDate: today
           });

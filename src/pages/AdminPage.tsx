@@ -34,7 +34,7 @@ export default function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Bot Settings state
-  const [botSettings, setBotSettings] = useState({ dailyLimit: 100, userDailyLimit: 10, dailyGenerations: 0, lastResetDate: '' });
+  const [botSettings, setBotSettings] = useState({ dailyLimit: 100, userDailyLimit: 10, rpmLimit: 15, dailyGenerations: 0, lastResetDate: '' });
   const [isLoadingBot, setIsLoadingBot] = useState(false);
   const [saveBotStatus, setSaveBotStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
@@ -79,6 +79,7 @@ export default function AdminPage() {
         setBotSettings({
           dailyLimit: data.dailyLimit || 100,
           userDailyLimit: data.userDailyLimit || 10,
+          rpmLimit: data.rpmLimit || 15,
           dailyGenerations: data.dailyGenerations || 0,
           lastResetDate: data.lastResetDate || ''
         });
@@ -95,7 +96,8 @@ export default function AdminPage() {
     try {
       await updateDoc(doc(db, 'content', 'bot_settings'), {
         dailyLimit: botSettings.dailyLimit,
-        userDailyLimit: botSettings.userDailyLimit
+        userDailyLimit: botSettings.userDailyLimit,
+        rpmLimit: botSettings.rpmLimit
       });
       setSaveBotStatus('success');
       setTimeout(() => setSaveBotStatus('idle'), 3000);
@@ -106,6 +108,7 @@ export default function AdminPage() {
         await setDoc(doc(db, 'content', 'bot_settings'), {
           dailyLimit: botSettings.dailyLimit,
           userDailyLimit: botSettings.userDailyLimit,
+          rpmLimit: botSettings.rpmLimit,
           dailyGenerations: botSettings.dailyGenerations,
           lastResetDate: botSettings.lastResetDate
         });
@@ -901,6 +904,21 @@ export default function AdminPage() {
                     />
                     <p className="text-xs text-zinc-500 mt-2">
                       Define quantas perguntas cada usuário individual pode fazer por dia (controlado via navegador).
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Requisições por Minuto (RPM)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={botSettings.rpmLimit}
+                      onChange={(e) => setBotSettings({ ...botSettings, rpmLimit: parseInt(e.target.value) || 15 })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      placeholder="Ex: 15"
+                    />
+                    <p className="text-xs text-zinc-500 mt-2">
+                      Define quantas perguntas o usuário pode fazer por minuto (evita spam rápido).
                     </p>
                   </div>
                 </div>
