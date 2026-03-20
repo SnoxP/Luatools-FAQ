@@ -34,7 +34,7 @@ export default function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Bot Settings state
-  const [botSettings, setBotSettings] = useState({ dailyLimit: 100, dailyGenerations: 0, lastResetDate: '' });
+  const [botSettings, setBotSettings] = useState({ dailyLimit: 100, userDailyLimit: 10, dailyGenerations: 0, lastResetDate: '' });
   const [isLoadingBot, setIsLoadingBot] = useState(false);
   const [saveBotStatus, setSaveBotStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
@@ -78,6 +78,7 @@ export default function AdminPage() {
         const data = docSnap.data();
         setBotSettings({
           dailyLimit: data.dailyLimit || 100,
+          userDailyLimit: data.userDailyLimit || 10,
           dailyGenerations: data.dailyGenerations || 0,
           lastResetDate: data.lastResetDate || ''
         });
@@ -93,7 +94,8 @@ export default function AdminPage() {
     setSaveBotStatus('saving');
     try {
       await updateDoc(doc(db, 'content', 'bot_settings'), {
-        dailyLimit: botSettings.dailyLimit
+        dailyLimit: botSettings.dailyLimit,
+        userDailyLimit: botSettings.userDailyLimit
       });
       setSaveBotStatus('success');
       setTimeout(() => setSaveBotStatus('idle'), 3000);
@@ -103,6 +105,7 @@ export default function AdminPage() {
         const { setDoc } = await import('../firebase');
         await setDoc(doc(db, 'content', 'bot_settings'), {
           dailyLimit: botSettings.dailyLimit,
+          userDailyLimit: botSettings.userDailyLimit,
           dailyGenerations: botSettings.dailyGenerations,
           lastResetDate: botSettings.lastResetDate
         });
@@ -872,7 +875,7 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Limite Diário de Mensagens</label>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Limite Diário de Mensagens (Global)</label>
                     <input
                       type="number"
                       min="1"
@@ -882,7 +885,22 @@ export default function AdminPage() {
                       placeholder="Ex: 1000"
                     />
                     <p className="text-xs text-zinc-500 mt-2">
-                      Define o número máximo de perguntas que o bot pode responder por dia para todos os usuários.
+                      Define o número máximo de perguntas que o bot pode responder por dia para todos os usuários somados.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Cota Diária por Usuário</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={botSettings.userDailyLimit}
+                      onChange={(e) => setBotSettings({ ...botSettings, userDailyLimit: parseInt(e.target.value) || 10 })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      placeholder="Ex: 10"
+                    />
+                    <p className="text-xs text-zinc-500 mt-2">
+                      Define quantas perguntas cada usuário individual pode fazer por dia (controlado via navegador).
                     </p>
                   </div>
                 </div>

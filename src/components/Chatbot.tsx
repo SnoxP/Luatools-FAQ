@@ -109,31 +109,58 @@ export default function Chatbot() {
         
         if (botSnap.exists()) {
           const data = botSnap.data();
-          const limit = data.dailyLimit || 100;
+          const globalLimit = data.dailyLimit || 100;
+          const userLimit = data.userDailyLimit || 10;
           const currentGens = data.lastResetDate === today ? (data.dailyGenerations || 0) : 0;
           
-          if (currentGens >= limit) {
+          // Check global limit
+          if (currentGens >= globalLimit) {
             setMessages(prev => [...prev, {
               id: Date.now().toString(),
               role: 'model',
-              text: '⚠️ O limite diário de respostas do bot foi atingido. Por favor, tente novamente amanhã ou abra um ticket no Discord.'
+              text: '⚠️ O limite diário global de respostas do bot foi atingido. Por favor, tente novamente amanhã ou abra um ticket no Discord.'
+            }]);
+            setIsLoading(false);
+            return;
+          }
+
+          // Check user limit
+          const userUsageData = localStorage.getItem('bot_usage');
+          let userUsage = userUsageData ? JSON.parse(userUsageData) : { date: today, count: 0 };
+          
+          if (userUsage.date !== today) {
+            userUsage = { date: today, count: 0 };
+          }
+
+          if (userUsage.count >= userLimit) {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: 'model',
+              text: `⚠️ Você atingiu sua cota diária de ${userLimit} perguntas. Por favor, tente novamente amanhã ou abra um ticket no Discord.`
             }]);
             setIsLoading(false);
             return;
           }
           
-          // Increment
+          // Increment global
           await updateDoc(botRef, {
             dailyGenerations: currentGens + 1,
             lastResetDate: today
           });
+
+          // Increment user
+          userUsage.count += 1;
+          localStorage.setItem('bot_usage', JSON.stringify(userUsage));
+
         } else {
           // Create default
           await setDoc(botRef, {
             dailyLimit: 100,
+            userDailyLimit: 10,
             dailyGenerations: 1,
             lastResetDate: today
           });
+          localStorage.setItem('bot_usage', JSON.stringify({ date: today, count: 1 }));
         }
       } catch (e) {
         console.error("Error checking bot limits", e);
