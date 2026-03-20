@@ -19,6 +19,8 @@ service cloud.firestore {
     // Fields:
     //   - email: string (required, valid email)
     //   - role: string (required, 'admin' or 'user')
+    //   - isOnline: boolean (optional)
+    //   - lastActive: number (optional)
     //
     // ===============================================================
 
@@ -66,15 +68,22 @@ service cloud.firestore {
     }
 
     function isValidUser() {
-      return hasOnlyAllowedFields(['email', 'role']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'isOnline', 'lastActive']) &&
              hasRequiredFields(['email', 'role']) &&
              isValidEmail(request.resource.data.email) &&
-             request.resource.data.role in ['admin', 'user'];
+             request.resource.data.role in ['admin', 'user'] &&
+             (!('isOnline' in request.resource.data) || request.resource.data.isOnline is bool) &&
+             (!('lastActive' in request.resource.data) || request.resource.data.lastActive is number);
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
+
+    match /content/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() || docId == 'bot_settings';
+    }
 
     match /faq/{categoryId} {
       allow read: if true;

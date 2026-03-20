@@ -83,6 +83,18 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Check if user is admin
         if (currentUser.email === 'pedronobreneto27@gmail.com' || currentUser.email === 'pedronobreneto@gmail.com') {
           setIsAdmin(true);
+          // Ensure admin document exists
+          try {
+            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+            if (!userDoc.exists()) {
+              await setDoc(doc(db, 'users', currentUser.uid), {
+                email: currentUser.email,
+                role: 'admin'
+              });
+            }
+          } catch (e) {
+            console.error("Error creating admin doc", e);
+          }
         } else {
           try {
             const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
@@ -196,7 +208,11 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
             if ((email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com') && password === 'O12S2345.') {
                try {
-                 await createUserWithEmailAndPassword(auth, email, password);
+                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                 await setDoc(doc(db, 'users', userCredential.user.uid), {
+                   email: email,
+                   role: 'admin'
+                 });
                } catch (createError: any) {
                  console.error("Create user error:", createError);
                  if (createError.code === 'auth/operation-not-allowed') {

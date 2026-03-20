@@ -4,6 +4,8 @@ import { MessageSquare, X, Send, Bot, User, Loader2, AlertCircle } from 'lucide-
 import { GoogleGenAI } from '@google/genai';
 import { useFaq } from '../context/FaqContext';
 import DiscordMarkdown from './DiscordMarkdown';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 let aiInstance: GoogleGenAI | null = null;
 
@@ -40,6 +42,11 @@ export default function Chatbot() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
+
+  // Reset chat session when FAQ data changes so the bot gets the updated system instruction
+  useEffect(() => {
+    chatRef.current = null;
+  }, [faqData]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,6 +99,45 @@ export default function Chatbot() {
             temperature: 0.4, // Slightly higher temperature for more natural, human-like responses
           }
         });
+      }
+
+      // Check bot limits
+      try {
+        const today = new Date().toLocaleDateString('pt-BR');
+        const botRef = doc(db, 'content', 'bot_settings');
+        const botSnap = await getDoc(botRef);
+        
+        if (botSnap.exists()) {
+          const data = botSnap.data();
+          const limit = data.dailyLimit || 100;
+          const currentGens = data.lastResetDate === today ? (data.dailyGenerations || 0) : 0;
+          
+          if (currentGens >= limit) {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: 'model',
+              text: '⚠️ O limite diário de respostas do bot foi atingido. Por favor, tente novamente amanhã ou abra um ticket no Discord.'
+            }]);
+            setIsLoading(false);
+            return;
+          }
+          
+          // Increment
+          await updateDoc(botRef, {
+            dailyGenerations: currentGens + 1,
+            lastResetDate: today
+          });
+        } else {
+          // Create default
+          await setDoc(botRef, {
+            dailyLimit: 100,
+            dailyGenerations: 1,
+            lastResetDate: today
+          });
+        }
+      } catch (e) {
+        console.error("Error checking bot limits", e);
+        // Continue anyway if there's an error reading/writing limits
       }
 
       const response = await chatRef.current.sendMessage({ message: userText });

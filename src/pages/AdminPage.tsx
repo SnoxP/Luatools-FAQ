@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
-import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench } from 'lucide-react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
 
@@ -19,7 +19,7 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'faq' | 'users' | 'fix'>('faq');
+  const [activeTab, setActiveTab] = useState<'faq' | 'users' | 'fix' | 'bot'>('faq');
   const [usersList, setUsersList] = useState<{id: string, email: string, role: string, isOnline?: boolean, lastActive?: number}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
@@ -30,6 +30,13 @@ export default function AdminPage() {
   const [fixData, setFixData] = useState({ title: '', description: '', version: '', downloadUrl: '' });
   const [isLoadingFix, setIsLoadingFix] = useState(false);
   const [saveFixStatus, setSaveFixStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  // Bot Settings state
+  const [botSettings, setBotSettings] = useState({ dailyLimit: 100, dailyGenerations: 0, lastResetDate: '' });
+  const [isLoadingBot, setIsLoadingBot] = useState(false);
+  const [saveBotStatus, setSaveBotStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
   // Sync local data when faqData changes (e.g., loaded from Firestore)
   useEffect(() => {
@@ -53,6 +60,8 @@ export default function AdminPage() {
         });
       } else if (activeTab === 'fix') {
         fetchFixData();
+      } else if (activeTab === 'bot') {
+        fetchBotSettings();
       }
     }
 
@@ -60,6 +69,51 @@ export default function AdminPage() {
       if (unsubscribeUsers) unsubscribeUsers();
     };
   }, [isAdmin, activeTab]);
+
+  const fetchBotSettings = async () => {
+    setIsLoadingBot(true);
+    try {
+      const docSnap = await getDoc(doc(db, 'content', 'bot_settings'));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setBotSettings({
+          dailyLimit: data.dailyLimit || 100,
+          dailyGenerations: data.dailyGenerations || 0,
+          lastResetDate: data.lastResetDate || ''
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching bot settings", err);
+    } finally {
+      setIsLoadingBot(false);
+    }
+  };
+
+  const saveBotSettings = async () => {
+    setSaveBotStatus('saving');
+    try {
+      await updateDoc(doc(db, 'content', 'bot_settings'), {
+        dailyLimit: botSettings.dailyLimit
+      });
+      setSaveBotStatus('success');
+      setTimeout(() => setSaveBotStatus('idle'), 3000);
+    } catch (err) {
+      console.error("Error saving bot settings", err);
+      try {
+        const { setDoc } = await import('../firebase');
+        await setDoc(doc(db, 'content', 'bot_settings'), {
+          dailyLimit: botSettings.dailyLimit,
+          dailyGenerations: botSettings.dailyGenerations,
+          lastResetDate: botSettings.lastResetDate
+        });
+        setSaveBotStatus('success');
+        setTimeout(() => setSaveBotStatus('idle'), 3000);
+      } catch (e) {
+        setSaveBotStatus('error');
+        setTimeout(() => setSaveBotStatus('idle'), 3000);
+      }
+    }
+  };
 
   const fetchFixData = async () => {
     setIsLoadingFix(true);
@@ -78,6 +132,65 @@ export default function AdminPage() {
       console.error("Error fetching fix data", err);
     } finally {
       setIsLoadingFix(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+
+    // Set title based on file name (without extension)
+    const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+    setFixData(prev => ({ ...prev, title: fileNameWithoutExt }));
+
+    try {
+      const { storage, ref, uploadBytesResumable, getDownloadURL } = await import('../firebase');
+      const storageRef = ref(storage, `fixes/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error("Upload failed", error);
+          setUploadProgress(null);
+          alert("Erro ao fazer upload do arquivo. Verifique as permissões do Storage.");
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          setFixData(prev => ({ ...prev, downloadUrl: downloadURL }));
+          setUploadProgress(null);
+        }
+      );
+    } catch (err) {
+      console.error("Error initializing upload", err);
+      setUploadProgress(null);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+      handleFileUpload(e.clipboardData.files[0]);
     }
   };
 
@@ -444,6 +557,13 @@ export default function AdminPage() {
             <Wrench className="w-4 h-4" />
             Gerenciar Fix
           </button>
+          <button
+            onClick={() => setActiveTab('bot')}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'bot' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            <Bot className="w-4 h-4" />
+            Configurações do Bot
+          </button>
         </div>
 
         {activeTab === 'faq' ? (
@@ -606,8 +726,15 @@ export default function AdminPage() {
               )}
             </div>
           </div>
-        ) : (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
+        ) : activeTab === 'fix' ? (
+          <div 
+            className={`bg-zinc-900 border-2 rounded-2xl overflow-hidden shadow-lg transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-500/10' : 'border-zinc-800'}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onPaste={handlePaste}
+            tabIndex={0}
+          >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">Gerenciar Fix</h2>
@@ -634,6 +761,22 @@ export default function AdminPage() {
                 <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>
               ) : (
                 <div className="space-y-6">
+                  {uploadProgress !== null && (
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-zinc-300">Enviando arquivo...</span>
+                        <span className="text-indigo-400 font-medium">{Math.round(uploadProgress)}%</span>
+                      </div>
+                      <div className="w-full bg-zinc-800 rounded-full h-2">
+                        <div className="bg-indigo-500 h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 mb-6">
+                    <p className="text-indigo-300 text-sm flex items-center gap-2">
+                      💡 Dica: Você pode arrastar um arquivo ou usar Ctrl+V nesta área para fazer upload automático e preencher o nome.
+                    </p>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-2">Título da Correção</label>
                     <input
@@ -677,7 +820,76 @@ export default function AdminPage() {
               )}
             </div>
           </div>
-        )}
+        ) : activeTab === 'bot' ? (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
+            <div className="bg-zinc-800/50 px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bot className="w-5 h-5 text-indigo-400" />
+                <h2 className="text-lg font-bold text-white">Configurações do Bot (IA)</h2>
+              </div>
+              <button
+                onClick={saveBotSettings}
+                disabled={saveBotStatus === 'saving'}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  saveBotStatus === 'success' ? 'bg-emerald-600 text-white' :
+                  saveBotStatus === 'error' ? 'bg-red-600 text-white' :
+                  'bg-indigo-600 text-white hover:bg-indigo-500'
+                }`}
+              >
+                {saveBotStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
+                 saveBotStatus === 'error' ? <AlertTriangle className="w-4 h-4" /> :
+                 <Save className="w-4 h-4" />}
+                {saveBotStatus === 'saving' ? 'Salvando...' :
+                 saveBotStatus === 'success' ? 'Salvo!' :
+                 saveBotStatus === 'error' ? 'Erro' :
+                 'Salvar Configurações'}
+              </button>
+            </div>
+            <div className="p-6">
+              {isLoadingBot ? (
+                <div className="flex justify-center py-12">
+                  <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                <div className="space-y-6 max-w-2xl">
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium text-white mb-1">Uso Diário</h3>
+                      <p className="text-zinc-400 text-sm">Quantidade de mensagens respondidas pelo bot hoje.</p>
+                      <p className="text-xs text-zinc-500 mt-1">Último reset: {botSettings.lastResetDate || 'Nunca'}</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-indigo-400">
+                        {botSettings.dailyGenerations} <span className="text-zinc-500 text-xl">/ {botSettings.dailyLimit}</span>
+                      </div>
+                      <div className="w-full bg-zinc-800 rounded-full h-2 mt-3 overflow-hidden">
+                        <div 
+                          className={`h-2 rounded-full ${botSettings.dailyGenerations >= botSettings.dailyLimit ? 'bg-red-500' : 'bg-indigo-500'}`}
+                          style={{ width: `${Math.min(100, (botSettings.dailyGenerations / botSettings.dailyLimit) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Limite Diário de Mensagens</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={botSettings.dailyLimit}
+                      onChange={(e) => setBotSettings({ ...botSettings, dailyLimit: parseInt(e.target.value) || 100 })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      placeholder="Ex: 1000"
+                    />
+                    <p className="text-xs text-zinc-500 mt-2">
+                      Define o número máximo de perguntas que o bot pode responder por dia para todos os usuários.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {confirmModal.isOpen && (
