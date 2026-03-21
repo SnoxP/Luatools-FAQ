@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, X, Send, Bot, User, Loader2, AlertCircle } from 'lucide-react';
+import { X, Send, Bot, User, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { useFaq } from '../context/FaqContext';
 import DiscordMarkdown from './DiscordMarkdown';
@@ -26,6 +26,7 @@ interface Message {
   id: string;
   role: 'user' | 'model';
   text: string;
+  image?: { data: string; mimeType: string };
 }
 
 export default function Chatbot() {
@@ -40,8 +41,10 @@ export default function Chatbot() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset chat session when FAQ data changes so the bot gets the updated system instruction
   useEffect(() => {
@@ -212,6 +215,18 @@ export default function Chatbot() {
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const data = (event.target?.result as string).split(',')[1];
+      setSelectedImage({ data, mimeType: file.type });
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <>
       {/* Floating Button */}
@@ -224,7 +239,7 @@ export default function Chatbot() {
             onClick={() => setIsOpen(true)}
             className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:scale-110 transition-all z-50"
           >
-            <MessageSquare className="w-6 h-6" />
+            <Bot className="w-6 h-6" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -296,16 +311,30 @@ export default function Chatbot() {
             <div className="p-4 border-t border-zinc-800 bg-zinc-900">
               <form onSubmit={handleSubmit} className="relative flex items-center">
                 <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  ref={fileInputRef}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 text-zinc-400 hover:text-indigo-400 transition-colors"
+                >
+                  <ImageIcon className="w-5 h-5" />
+                </button>
+                <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Digite sua dúvida..."
+                  placeholder={selectedImage ? "Imagem selecionada..." : "Digite sua dúvida..."}
                   disabled={isLoading}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-full pl-4 pr-12 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={!input.trim() || isLoading}
+                  disabled={(!input.trim() && !selectedImage) || isLoading}
                   className="absolute right-2 p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
                 >
                   <Send className="w-4 h-4" />
