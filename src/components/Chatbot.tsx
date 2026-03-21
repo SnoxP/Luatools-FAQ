@@ -61,27 +61,37 @@ export default function Chatbot() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !selectedImage) || isLoading) return;
 
     const userText = input.trim();
     setInput('');
     
-    const newUserMsg: Message = { id: Date.now().toString(), role: 'user', text: userText };
-    setMessages(prev => [...prev, newUserMsg]);
+    const newUserMsg: Message = { 
+      id: Date.now().toString(), 
+      role: 'user', 
+      text: userText,
+      image: selectedImage || undefined
+    };
+    
+    // Create a local copy of messages including the new one for the API call
+    const currentMessages = [...messages, newUserMsg];
+    setMessages(currentMessages);
     setIsLoading(true);
+    setSelectedImage(null);
 
     try {
-      const systemInstruction = `Você é o assistente virtual amigável do servidor Discord 'LuaTools'.
+      const systemInstruction = `Você é o assistente virtual amigável e especialista do servidor Discord 'LuaTools'.
       Seu objetivo é ajudar os usuários respondendo dúvidas com base no seguinte FAQ:
       ${JSON.stringify(faqData)}
 
       REGRAS:
       1. Seja educado, amigável e humano. Se o usuário apenas disser "oi", "olá", "bom dia", etc., responda de forma acolhedora e pergunte como pode ajudar.
-      2. Para dúvidas técnicas, responda APENAS com base no FAQ fornecido. Não invente informações.
-      3. Se a dúvida técnica não estiver no FAQ, responda de forma educada que não encontrou a resposta e sugira abrir um ticket no Discord. Exemplo: "Poxa, não encontrei essa informação no nosso FAQ. Mas não se preocupe! Você pode abrir um ticket no nosso servidor do Discord para a equipe te ajudar melhor."
+      2. Para dúvidas técnicas gerais, priorize responder com base no FAQ fornecido.
+      3. Se a dúvida técnica não estiver no FAQ, NÃO diga apenas que não sabe. Tente deduzir o problema usando seu conhecimento geral de programação/sistemas e forneça alternativas ou passos de troubleshooting que possam resolver a situação. Apenas se for algo muito específico e sem solução aparente, sugira pedir ajuda no servidor.
       4. Sempre que usar uma informação do FAQ, cite a seção (ex: 1A, 2B).
       5. Seja claro, direto e use emojis para deixar a conversa mais leve.
-      6. Quando responder a uma dúvida do FAQ, sugira 1 ou 2 perguntas relacionadas no final.`;
+      6. Quando responder a uma dúvida do FAQ, sugira 1 ou 2 perguntas relacionadas no final.
+      7. ANÁLISE DE IMAGENS: Se o usuário enviar uma imagem, aja como um desenvolvedor sênior investigando um bug. Analise a imagem detalhadamente, pense passo a passo sobre o que está visível (erros de sintaxe, logs, interface), identifique a causa raiz e forneça uma explicação técnica aprofundada com possíveis soluções (mesmo que não estejam no FAQ).`;
 
       const ai = getAI();
       if (!ai) {
@@ -92,16 +102,6 @@ export default function Chatbot() {
         }]);
         setIsLoading(false);
         return;
-      }
-
-      if (!chatRef.current) {
-        chatRef.current = ai.chats.create({
-          model: 'gemini-3-flash-preview',
-          config: {
-            systemInstruction,
-            temperature: 0.4, // Slightly higher temperature for more natural, human-like responses
-          }
-        });
       }
 
       // Check bot limits
@@ -122,7 +122,7 @@ export default function Chatbot() {
             setMessages(prev => [...prev, {
               id: Date.now().toString(),
               role: 'model',
-              text: '⚠️ O limite diário global de respostas do bot foi atingido. Por favor, tente novamente amanhã ou abra um ticket no Discord.'
+              text: '⚠️ O limite diário global de respostas do bot foi atingido. Por favor, tente novamente amanhã ou peça ajuda no servidor.'
             }]);
             setIsLoading(false);
             return;
@@ -158,7 +158,7 @@ export default function Chatbot() {
             setMessages(prev => [...prev, {
               id: Date.now().toString(),
               role: 'model',
-              text: `⚠️ Você atingiu sua cota diária de ${userLimit} perguntas. Por favor, tente novamente amanhã ou abra um ticket no Discord.`
+              text: `⚠️ Você atingiu sua cota diária de ${userLimit} perguntas. Por favor, tente novamente amanhã ou peça ajuda no servidor.`
             }]);
             setIsLoading(false);
             return;
@@ -194,7 +194,36 @@ export default function Chatbot() {
         // Continue anyway if there's an error reading/writing limits
       }
 
-      const response = await chatRef.current.sendMessage({ message: userText });
+      // Build contents array for generateContent
+      // Skip the first welcome message as it's not from the user and might confuse the model's history
+      const historyMessages = currentMessages.filter(m => m.id !== 'welcome');
+      
+      const contents = historyMessages.map(m => {
+        const parts: any[] = [];
+        if (m.text) {
+          parts.push({ text: m.text });
+        }
+        if (m.image) {
+          parts.push({ inlineData: { data: m.image.data, mimeType: m.image.mimeType } });
+        }
+        // If a user sends only an image, ensure there's at least some text or the API might complain
+        if (parts.length === 1 && m.image) {
+           parts.unshift({ text: "Analise esta imagem." });
+        }
+        return {
+          role: m.role,
+          parts
+        };
+      });
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents,
+        config: {
+          systemInstruction,
+          temperature: 0.4,
+        }
+      });
       
       const newModelMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -225,6 +254,26 @@ export default function Chatbot() {
       setSelectedImage({ data, mimeType: file.type });
     };
     reader.readAsDataURL(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (!file) continue;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const data = (event.target?.result as string).split(',')[1];
+          setSelectedImage({ data, mimeType: file.type });
+        };
+        reader.readAsDataURL(file);
+        break; // Only handle the first image pasted
+      }
+    }
   };
 
   return (
@@ -290,6 +339,14 @@ export default function Chatbot() {
                         : 'bg-zinc-800 text-zinc-200 rounded-tl-sm'
                     }`}
                   >
+                    {msg.image && (
+                      <img 
+                        src={`data:${msg.image.mimeType};base64,${msg.image.data}`} 
+                        alt="Uploaded" 
+                        className="max-w-full rounded-lg mb-2"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
                     <DiscordMarkdown className="text-sm leading-relaxed">
                       {msg.text}
                     </DiscordMarkdown>
@@ -309,6 +366,23 @@ export default function Chatbot() {
 
             {/* Input Area */}
             <div className="p-4 border-t border-zinc-800 bg-zinc-900">
+              {selectedImage && (
+                <div className="mb-3 relative inline-block">
+                  <img 
+                    src={`data:${selectedImage.mimeType};base64,${selectedImage.data}`} 
+                    alt="Preview" 
+                    className="h-20 rounded-lg border border-zinc-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImage(null)}
+                    className="absolute -top-2 -right-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-full p-1 border border-zinc-700 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="relative flex items-center">
                 <input
                   type="file"
@@ -328,7 +402,8 @@ export default function Chatbot() {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={selectedImage ? "Imagem selecionada..." : "Digite sua dúvida..."}
+                  onPaste={handlePaste}
+                  placeholder={selectedImage ? "Imagem selecionada..." : "Digite sua dúvida ou cole uma imagem (Ctrl+V)..."}
                   disabled={isLoading}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-full pl-4 pr-12 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
                 />
@@ -342,13 +417,13 @@ export default function Chatbot() {
               </form>
               <div className="mt-2 text-center">
                 <a
-                  href="https://discord.gg/luatools"
+                  href="https://ptb.discord.com/channels/1408201417834893385/1464812261611933839"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-zinc-500 hover:text-indigo-400 transition-colors flex items-center justify-center gap-1"
                 >
                   <AlertCircle className="w-3 h-3" />
-                  Não encontrou? Abra um ticket no Discord
+                  Não encontrou? Peça ajuda no servidor
                 </a>
               </div>
             </div>
