@@ -5,10 +5,12 @@ import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
 
+import { useLocation } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 export default function AdminPage() {
   const { faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, signup, logout } = useFaq();
+  const location = useLocation();
   
   // Local state for editing
   const [localData, setLocalData] = useState<FaqCategory[]>([]);
@@ -41,8 +43,16 @@ export default function AdminPage() {
   // Sync local data when faqData changes (e.g., loaded from Firestore)
   useEffect(() => {
     setLocalData(JSON.parse(JSON.stringify(faqData)));
-    setExpandedCategories(new Set(faqData.map(c => c.id)));
+    // FAQs are minimized by default (empty Set)
   }, [faqData]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab === 'fix' || tab === 'faq' || tab === 'users' || tab === 'bot') {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     let unsubscribeUsers: (() => void) | undefined;
@@ -162,7 +172,7 @@ export default function AdminPage() {
         (error) => {
           console.error("Upload failed", error);
           setUploadProgress(null);
-          alert("Erro ao fazer upload do arquivo. Verifique as permissões do Storage.");
+          alert("Erro ao fazer upload do arquivo. Verifique se as regras do Firebase Storage permitem uploads (ex: allow write: if request.auth != null;).");
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
@@ -634,7 +644,7 @@ export default function AdminPage() {
                                   <textarea
                                     value={item.answer}
                                     onChange={(e) => updateItem(category.id, item.id, 'answer', e.target.value)}
-                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-sm focus:outline-none focus:border-indigo-500 transition-colors min-h-[100px] resize-y"
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-300 text-sm focus:outline-none focus:border-indigo-500 transition-colors min-h-[250px] resize-y"
                                     placeholder="Resposta..."
                                   />
                                 </div>
@@ -779,9 +789,24 @@ export default function AdminPage() {
                     </div>
                   )}
                   <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 mb-6">
-                    <p className="text-indigo-300 text-sm flex items-center gap-2">
-                      💡 Dica: Você pode arrastar um arquivo ou usar Ctrl+V nesta área para fazer upload automático e preencher o nome.
+                    <p className="text-indigo-300 text-sm flex items-center gap-2 mb-3">
+                      💡 Dica: Você pode arrastar um arquivo, usar Ctrl+V nesta área ou clicar no botão abaixo para fazer upload automático e preencher o nome.
                     </p>
+                    <div className="flex items-center gap-4">
+                      <label className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        Selecionar Arquivo
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              handleFileUpload(e.target.files[0]);
+                            }
+                          }}
+                        />
+                      </label>
+                      <span className="text-zinc-500 text-sm">Nenhum arquivo selecionado</span>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-2">Título da Correção</label>

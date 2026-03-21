@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wrench, Download, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Wrench, Download, Clock, AlertCircle, Loader2, Edit } from 'lucide-react';
 import { db, doc, getDoc } from '../firebase';
 import DiscordMarkdown from '../components/DiscordMarkdown';
+import { useFaq } from '../context/FaqContext';
+import { useNavigate } from 'react-router-dom';
 
 interface FixData {
   title: string;
@@ -15,6 +17,8 @@ interface FixData {
 export default function FixPage() {
   const [fixData, setFixData] = useState<FixData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { isAdmin } = useFaq();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchFixData = async () => {
@@ -79,6 +83,15 @@ export default function FixPage() {
                   <Download className="w-5 h-5" />
                   Baixar Correção
                 </a>
+                {isAdmin && (
+                  <button
+                    onClick={() => navigate('/admin?tab=fix')}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-colors shrink-0"
+                  >
+                    <Edit className="w-5 h-5" />
+                    Editar Fix
+                  </button>
+                )}
               </div>
 
               <div className="prose prose-invert max-w-none">
