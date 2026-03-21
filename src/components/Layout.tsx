@@ -48,13 +48,13 @@ export default function Layout() {
                   );
                 })}
                 <a
-                  href="https://discord.gg/luatools"
+                  href="https://ptb.discord.com/channels/1408201417834893385/1464812261611933839"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ml-4 flex items-center px-4 py-2 rounded-full text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20"
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
-                  Abrir Ticket
+                  Pedir ajuda
                 </a>
               </div>
             </div>
@@ -100,13 +100,13 @@ export default function Layout() {
                   );
                 })}
                 <a
-                  href="https://discord.gg/luatools"
+                  href="https://ptb.discord.com/channels/1408201417834893385/1464812261611933839"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-4 flex items-center justify-center w-full px-4 py-2 rounded-md text-base font-medium bg-indigo-600 text-white hover:bg-indigo-500"
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
-                  Abrir Ticket no Discord
+                  Pedir ajuda no servidor
                 </a>
               </div>
             </motion.div>
@@ -129,7 +129,7 @@ export default function Layout() {
           <div className="flex items-center gap-4 text-sm text-zinc-500">
             <Link to="/faq" className="hover:text-zinc-300 transition-colors">FAQ</Link>
             <Link to="/fix" className="hover:text-zinc-300 transition-colors">Fix</Link>
-            <a href="https://discord.gg/luatools" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-300 transition-colors">Discord</a>
+            <a href="https://ptb.discord.com/channels/1408201417834893385/1464812261611933839" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-300 transition-colors">Discord</a>
             <Link to="/admin" className="hover:text-zinc-300 transition-colors">Login</Link>
           </div>
         </div>

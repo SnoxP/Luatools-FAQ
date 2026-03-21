@@ -59,13 +59,13 @@ export default function Home() {
                 Acessar Base de Conhecimento
               </Link>
               <a
-                href="https://discord.gg/luatools"
+                href="https://ptb.discord.com/channels/1408201417834893385/1464812261611933839"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto px-8 py-4 rounded-full bg-zinc-800 text-white font-medium hover:bg-zinc-700 transition-all border border-zinc-700 flex items-center justify-center gap-2"
               >
                 <MessageSquare className="w-5 h-5" />
-                Abrir Ticket no Discord
+                Pedir ajuda no servidor
               </a>
             </motion.div>
           </motion.div>
@@ -134,15 +134,15 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ainda não encontrou a solução?</h2>
           <p className="text-zinc-400 mb-8 text-lg">
             Nossa equipe de suporte está pronta para ajudar você no Discord. 
-            Abra um ticket e descreva seu problema detalhadamente.
+            Peça ajuda no servidor e descreva seu problema detalhadamente.
           </p>
           <a
-            href="https://discord.gg/luatools"
+            href="https://ptb.discord.com/channels/1408201417834893385/1464812261611933839"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center px-8 py-4 rounded-full bg-white text-zinc-950 font-bold hover:bg-zinc-200 transition-colors gap-2"
           >
-            Ir para o Discord
+            Pedir ajuda no servidor
             <ArrowRight className="w-5 h-5" />
           </a>
         </div>
