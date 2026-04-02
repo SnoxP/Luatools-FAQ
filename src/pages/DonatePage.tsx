@@ -81,22 +81,6 @@ export default function DonatePage() {
         </p>
         
         <div className="space-y-6 max-w-md mx-auto">
-          {/* LivePix Button */}
-          <a
-            href="https://livepix.gg/luatools"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-lg transition-colors"
-          >
-            Doar via LivePix
-          </a>
-
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-white/10"></div>
-            <span className="flex-shrink-0 mx-4 text-zinc-500 text-sm">OU VIA PIX DIRETO</span>
-            <div className="flex-grow border-t border-white/10"></div>
-          </div>
-
           {/* Pix Generator */}
           <div className="bg-[#212121] p-6 rounded-lg border border-white/5">
             <div className="mb-4 text-left">

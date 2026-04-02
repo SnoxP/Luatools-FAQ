@@ -4,8 +4,9 @@ import { Send, Bot, Loader2, AlertCircle, Image as ImageIcon, X } from 'lucide-r
 import { GoogleGenAI } from '@google/genai';
 import { useFaq } from '../context/FaqContext';
 import DiscordMarkdown from '../components/DiscordMarkdown';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
+import { Link } from 'react-router-dom';
 
 let aiInstance: GoogleGenAI | null = null;
 
@@ -29,7 +30,7 @@ interface Message {
 }
 
 export default function Home() {
-  const { faqData } = useFaq();
+  const { faqData, user } = useFaq();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -60,6 +61,15 @@ export default function Home() {
     e?.preventDefault();
     if ((!input.trim() && !selectedImage) || isLoading) return;
 
+    if (!user) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'model',
+        text: '⚠️ Você precisa fazer login para usar o chat. Acesse a aba "Login" no menu.'
+      }]);
+      return;
+    }
+
     const userText = input.trim();
     setInput('');
     
@@ -76,6 +86,19 @@ export default function Home() {
     setSelectedImage(null);
 
     try {
+      // Save chat log to Firestore
+      try {
+        const logRef = doc(collection(db, 'chat_logs'));
+        await setDoc(logRef, {
+          userId: user.uid,
+          userEmail: user.email || 'Desconhecido',
+          question: userText || '[Imagem enviada]',
+          timestamp: Date.now()
+        });
+      } catch (logError) {
+        console.error("Error saving chat log:", logError);
+      }
+
       const systemInstruction = `Você é o assistente virtual amigável e especialista do servidor Discord 'LuaTools'.
       Seu objetivo é ajudar os usuários respondendo dúvidas com base no seguinte FAQ:
       ${JSON.stringify(faqData)}
@@ -332,61 +355,70 @@ export default function Home() {
 
       {/* Input Area */}
       <div className="w-full max-w-3xl mx-auto px-4 pb-6 pt-2">
-        <div className="relative bg-[#2f2f2f] rounded-3xl border border-white/10 shadow-lg focus-within:border-white/20 transition-colors">
-          {selectedImage && (
-            <div className="absolute bottom-full left-0 mb-3 ml-4">
-              <div className="relative inline-block">
-                <img 
-                  src={`data:${selectedImage.mimeType};base64,${selectedImage.data}`} 
-                  alt="Preview" 
-                  className="h-16 rounded-lg border border-white/10 object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <button
-                  type="button"
-                  onClick={() => setSelectedImage(null)}
-                  className="absolute -top-2 -right-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-full p-1 border border-zinc-700 transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
+        {!user ? (
+          <div className="bg-[#2f2f2f] rounded-3xl border border-white/10 p-6 text-center shadow-lg">
+            <p className="text-zinc-300 mb-4">Você precisa estar logado para conversar com o bot.</p>
+            <Link to="/painel-admin" className="inline-block px-6 py-2 bg-white text-black font-medium rounded-full hover:bg-zinc-200 transition-colors">
+              Fazer Login ou Criar Conta
+            </Link>
+          </div>
+        ) : (
+          <div className="relative bg-[#2f2f2f] rounded-3xl border border-white/10 shadow-lg focus-within:border-white/20 transition-colors">
+            {selectedImage && (
+              <div className="absolute bottom-full left-0 mb-3 ml-4">
+                <div className="relative inline-block">
+                  <img 
+                    src={`data:${selectedImage.mimeType};base64,${selectedImage.data}`} 
+                    alt="Preview" 
+                    className="h-16 rounded-lg border border-white/10 object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImage(null)}
+                    className="absolute -top-2 -right-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-full p-1 border border-zinc-700 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="flex items-end gap-2 p-2">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              ref={fileInputRef}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-3 text-zinc-400 hover:text-zinc-200 transition-colors rounded-full hover:bg-white/5 shrink-0"
-            >
-              <ImageIcon className="w-5 h-5" />
-            </button>
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder={selectedImage ? "Imagem selecionada..." : "Pergunte algo ao LuaTools..."}
-              disabled={isLoading}
-              rows={1}
-              className="w-full bg-transparent border-none resize-none text-[15px] text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-0 py-3 max-h-32 overflow-y-auto disabled:opacity-50"
-              style={{ minHeight: '44px' }}
-            />
-            <button
-              type="submit"
-              disabled={(!input.trim() && !selectedImage) || isLoading}
-              className="p-3 rounded-full bg-white text-black hover:bg-zinc-200 disabled:opacity-50 disabled:bg-white/10 disabled:text-zinc-500 transition-colors shrink-0 mb-0.5 mr-0.5"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
+            )}
+            <form onSubmit={handleSubmit} className="flex items-end gap-2 p-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                ref={fileInputRef}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-3 text-zinc-400 hover:text-zinc-200 transition-colors rounded-full hover:bg-white/5 shrink-0"
+              >
+                <ImageIcon className="w-5 h-5" />
+              </button>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                placeholder={selectedImage ? "Imagem selecionada..." : "Pergunte algo ao LuaTools..."}
+                disabled={isLoading}
+                rows={1}
+                className="w-full bg-transparent border-none resize-none text-[15px] text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-0 py-3 max-h-32 overflow-y-auto disabled:opacity-50"
+                style={{ minHeight: '44px' }}
+              />
+              <button
+                type="submit"
+                disabled={(!input.trim() && !selectedImage) || isLoading}
+                className="p-3 rounded-full bg-white text-black hover:bg-zinc-200 disabled:opacity-50 disabled:bg-white/10 disabled:text-zinc-500 transition-colors shrink-0 mb-0.5 mr-0.5"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        )}
         <div className="text-center mt-3">
           <p className="text-xs text-zinc-500">
             O assistente pode cometer erros. Considere verificar informações importantes no{' '}

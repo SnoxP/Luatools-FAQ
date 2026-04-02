@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
-import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon, AlertCircle } from 'lucide-react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon, AlertCircle, Upload } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
 import { GoogleGenAI } from '@google/genai';
@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [saveBotStatus, setSaveBotStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [botStatus, setBotStatus] = useState<'checking' | 'online' | 'error'>('checking');
   const [botErrorReason, setBotErrorReason] = useState<string>('');
+  const [chatLogs, setChatLogs] = useState<any[]>([]);
 
   // Sync local data when faqData changes (e.g., loaded from Firestore)
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     let unsubscribeUsers: (() => void) | undefined;
+    let unsubscribeLogs: (() => void) | undefined;
 
     if (isAdmin) {
       if (activeTab === 'users') {
@@ -77,11 +79,22 @@ export default function AdminPage() {
       } else if (activeTab === 'bot') {
         fetchBotSettings();
         checkBotStatus();
+        
+        // Fetch chat logs
+        unsubscribeLogs = onSnapshot(collection(db, 'chat_logs'), (snapshot) => {
+          const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+          // Sort by timestamp descending
+          logs.sort((a, b) => b.timestamp - a.timestamp);
+          setChatLogs(logs);
+        }, (err) => {
+          console.error("Error fetching chat logs", err);
+        });
       }
     }
 
     return () => {
       if (unsubscribeUsers) unsubscribeUsers();
+      if (unsubscribeLogs) unsubscribeLogs();
     };
   }, [isAdmin, activeTab]);
 
@@ -839,14 +852,56 @@ export default function AdminPage() {
                   <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-5 mb-6">
                     <h3 className="text-blue-400 font-medium mb-2 flex items-center gap-2">
                       <AlertCircle className="w-5 h-5" />
-                      Como adicionar um Fix
+                      Hospedagem de Arquivos
                     </h3>
                     <p className="text-blue-300/80 text-sm leading-relaxed">
-                      Para evitar custos com armazenamento e limites de tamanho no Firebase, recomendamos hospedar seus arquivos de correção em serviços gratuitos e ilimitados como <strong>MediaFire, Google Drive ou Mega</strong>.
-                      <br /><br />
-                      Faça o upload do arquivo no serviço de sua preferência, copie o link público de download e cole-o no campo "Link de Download" abaixo.
+                      Você pode fazer o upload do arquivo diretamente aqui. Ele será salvo no <strong>Firebase Storage</strong> (gratuito).
+                      Arraste o arquivo para a área abaixo ou clique para selecionar.
                     </p>
                   </div>
+
+                  {/* Upload Area */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
+                      isDragging ? 'border-pink-500 bg-pink-500/5' : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="fix-upload"
+                      className="hidden"
+                      onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+                    />
+                    <label htmlFor="fix-upload" className="cursor-pointer flex flex-col items-center">
+                      <div className="w-16 h-16 rounded-full bg-[#212121] flex items-center justify-center mb-4">
+                        <Upload className="w-8 h-8 text-zinc-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-white mb-2">
+                        Arraste o arquivo do Fix aqui
+                      </h3>
+                      <p className="text-zinc-400 text-sm mb-4">
+                        ou clique para procurar no seu computador
+                      </p>
+                      {uploadProgress !== null && (
+                        <div className="w-full max-w-xs mx-auto">
+                          <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                            <span>Enviando...</span>
+                            <span>{Math.round(uploadProgress)}%</span>
+                          </div>
+                          <div className="w-full bg-[#171717] rounded-full h-2 overflow-hidden">
+                            <div
+                              className="bg-pink-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${uploadProgress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-2">Título da Correção</label>
                     <input
@@ -968,6 +1023,35 @@ export default function AdminPage() {
                           style={{ width: `${Math.min(100, (botSettings.dailyGenerations / botSettings.dailyLimit) * 100)}%` }}
                         ></div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Chat Logs */}
+                  <div className="bg-[#212121] border border-white/10 rounded-xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-white/10">
+                      <h3 className="text-lg font-medium text-white">Log de Mensagens</h3>
+                      <p className="text-zinc-400 text-sm">Últimas perguntas feitas ao bot.</p>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {chatLogs.length === 0 ? (
+                        <div className="p-6 text-center text-zinc-500">Nenhuma mensagem registrada ainda.</div>
+                      ) : (
+                        <div className="divide-y divide-white/5">
+                          {chatLogs.map((log) => (
+                            <div key={log.id} className="p-4 hover:bg-white/5 transition-colors">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="text-sm font-medium text-white">{log.userEmail}</div>
+                                <div className="text-xs text-zinc-500">
+                                  {new Date(log.timestamp).toLocaleString('pt-BR')}
+                                </div>
+                              </div>
+                              <p className="text-sm text-zinc-300 bg-[#171717] p-3 rounded-lg border border-white/5">
+                                {log.question}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
