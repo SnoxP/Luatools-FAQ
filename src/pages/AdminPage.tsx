@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
-import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot } from 'lucide-react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 export default function AdminPage() {
   const { faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, signup, logout } = useFaq();
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Local state for editing
   const [localData, setLocalData] = useState<FaqCategory[]>([]);
@@ -259,6 +260,7 @@ export default function AdminPage() {
       } else {
         await signup(email, password);
       }
+      // Note: The redirect is handled by a useEffect watching the user/isAdmin state
     } catch (err: any) {
       console.error("Auth failed", err);
       if (err.message === 'auth/operation-not-allowed') {
@@ -272,6 +274,12 @@ export default function AdminPage() {
       }
     }
   };
+
+  useEffect(() => {
+    if (isAuthReady && user && !isAdmin) {
+      navigate('/perfil');
+    }
+  }, [user, isAdmin, isAuthReady, navigate]);
 
   const handleSave = async () => {
     try {
@@ -421,20 +429,20 @@ export default function AdminPage() {
 
   if (!isAuthReady) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+      <div className="min-h-[80vh] flex items-center justify-center bg-[#212121]">
+        <Loader2 className="w-8 h-8 text-zinc-500 animate-spin" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl text-center">
+      <div className="min-h-full flex items-center justify-center px-4 bg-[#212121]">
+        <div className="max-w-md w-full bg-[#2f2f2f] border border-white/10 rounded-2xl p-8 shadow-sm text-center">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">{isLoginMode ? 'Acesso Restrito' : 'Criar Conta'}</h2>
+            <h2 className="text-2xl font-semibold text-white mb-2">{isLoginMode ? 'Acesso Restrito' : 'Criar Conta'}</h2>
             <p className="text-zinc-400 text-sm">Área exclusiva para administradores do LuaTools.</p>
-            <p className="text-indigo-400 text-sm mt-2 font-medium">Caso seja cargo Helper ou +, contate o SnoxP718 para adicioná-lo ao site.</p>
+            <p className="text-zinc-300 text-sm mt-2">Caso seja cargo Helper ou +, contate o SnoxP718 para adicioná-lo ao site.</p>
           </div>
           
           <form onSubmit={handleAuth} className="space-y-4">
@@ -444,7 +452,7 @@ export default function AdminPage() {
                 placeholder="E-mail"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
                 required
               />
             </div>
@@ -454,15 +462,15 @@ export default function AdminPage() {
                 placeholder="Senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
                 required
                 minLength={6}
               />
             </div>
-            {loginError && <p className="text-red-500 text-sm text-left">{loginError}</p>}
+            {loginError && <p className="text-red-400 text-sm text-left">{loginError}</p>}
             <button
               type="submit"
-              className="w-full bg-indigo-600 text-white font-bold rounded-xl px-4 py-3 hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-white text-black font-medium rounded-xl px-4 py-3 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
             >
               {isLoginMode ? 'Entrar' : 'Criar Conta'}
             </button>
@@ -486,36 +494,51 @@ export default function AdminPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl text-center">
-          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Acesso Negado</h2>
+      <div className="min-h-full flex items-center justify-center px-4 bg-[#212121]">
+        <div className="max-w-md w-full bg-[#2f2f2f] border border-white/10 rounded-2xl p-8 shadow-sm text-center">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold text-white mb-2">Acesso Negado</h2>
           <p className="text-zinc-400 text-sm mb-6">
             Sua conta ({user.email}) não tem permissão de administrador.
           </p>
-          <button
-            onClick={logout}
-            className="w-full bg-zinc-800 text-white font-medium rounded-xl px-4 py-3 hover:bg-zinc-700 transition-colors"
-          >
-            Sair e tentar outra conta
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => window.location.href = '/perfil'}
+              className="w-full bg-white text-black font-medium rounded-xl px-4 py-3 hover:bg-zinc-200 transition-colors"
+            >
+              Ir para o Meu Perfil
+            </button>
+            <button
+              onClick={logout}
+              className="w-full bg-[#212121] text-white font-medium rounded-xl px-4 py-3 hover:bg-white/5 border border-white/10 transition-colors"
+            >
+              Sair e tentar outra conta
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-full bg-[#212121] text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Painel de Administração</h1>
-            <p className="text-zinc-400">Gerencie o conteúdo e os usuários do sistema.</p>
+            <h1 className="text-2xl font-semibold text-white mb-2">Painel de Administração</h1>
+            <p className="text-zinc-400 text-sm">Gerencie o conteúdo e os usuários do sistema.</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <button
+              onClick={() => navigate('/perfil')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2f2f2f] text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border border-white/10"
+              title="Meu Perfil"
+            >
+              <UserIcon className="w-4 h-4" />
+            </button>
+            <button
               onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 text-zinc-400 hover:text-white transition-colors border border-zinc-800"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2f2f2f] text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border border-white/10"
               title="Sair"
             >
               <LogOut className="w-4 h-4" />
@@ -524,7 +547,7 @@ export default function AdminPage() {
               <>
                 <button
                   onClick={handleReset}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors border border-zinc-700"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2f2f2f] text-zinc-300 hover:bg-white/5 hover:text-white transition-colors border border-white/10"
                 >
                   <RotateCcw className="w-4 h-4" />
                   Restaurar Padrão
@@ -532,10 +555,10 @@ export default function AdminPage() {
                 <button
                   onClick={handleSave}
                   disabled={saveStatus === 'saving'}
-                  className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-6 py-2 rounded-xl font-medium transition-colors ${
                     saveStatus === 'success' ? 'bg-emerald-600 text-white' :
                     saveStatus === 'error' ? 'bg-red-600 text-white' :
-                    'bg-indigo-600 text-white hover:bg-indigo-500'
+                    'bg-white text-black hover:bg-zinc-200'
                   }`}
                 >
                   {saveStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
@@ -551,31 +574,31 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="flex border-b border-zinc-800 mb-8">
+        <div className="flex border-b border-white/10 mb-8 overflow-x-auto">
           <button
             onClick={() => setActiveTab('faq')}
-            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'faq' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'faq' ? 'border-white text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             <MessageSquare className="w-4 h-4" />
             Gerenciar FAQ
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'users' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-white text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             <Users className="w-4 h-4" />
             Usuários
           </button>
           <button
             onClick={() => setActiveTab('fix')}
-            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'fix' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'fix' ? 'border-white text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             <Wrench className="w-4 h-4" />
             Gerenciar Fix
           </button>
           <button
             onClick={() => setActiveTab('bot')}
-            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'bot' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'bot' ? 'border-white text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             <Bot className="w-4 h-4" />
             Configurações do Bot
@@ -586,9 +609,9 @@ export default function AdminPage() {
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="space-y-6">
               {localData.map((category) => (
-              <div key={category.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
+              <div key={category.id} className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
                 {/* Category Header */}
-                <div className="bg-zinc-800/50 px-4 py-4 border-b border-zinc-800 flex items-center justify-between">
+                <div className="bg-[#2f2f2f] px-4 py-4 border-b border-white/10 flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
                     <button onClick={() => toggleCategory(category.id)} className="text-zinc-400 hover:text-white transition-colors">
                       {expandedCategories.has(category.id) ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
@@ -597,13 +620,13 @@ export default function AdminPage() {
                       type="text"
                       value={category.title}
                       onChange={(e) => updateCategoryTitle(category.id, e.target.value)}
-                      className="bg-transparent text-lg font-bold text-white focus:outline-none focus:border-b border-indigo-500 w-full max-w-md px-1"
+                      className="bg-transparent text-lg font-semibold text-white focus:outline-none focus:border-b border-white/20 w-full max-w-md px-1"
                       placeholder="Nome da Categoria"
                     />
                   </div>
                   <button
                     onClick={() => deleteCategory(category.id)}
-                    className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-400/10"
+                    className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-white/5"
                     title="Excluir Categoria"
                   >
                     <Trash2 className="w-5 h-5" />
@@ -623,7 +646,7 @@ export default function AdminPage() {
                           <Draggable key={item.id} draggableId={item.id} index={index}>
                             {(provided) => (
                               <div 
-                                className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex gap-4"
+                                className="bg-[#212121] border border-white/5 rounded-xl p-4 flex gap-4"
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                               >
@@ -638,19 +661,19 @@ export default function AdminPage() {
                                     type="text"
                                     value={item.question}
                                     onChange={(e) => updateItem(category.id, item.id, 'question', e.target.value)}
-                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+                                    className="w-full bg-[#2f2f2f] border border-white/10 rounded-lg px-3 py-2 text-white font-medium focus:outline-none focus:border-white/20 transition-colors"
                                     placeholder="Pergunta..."
                                   />
                                   <textarea
                                     value={item.answer}
                                     onChange={(e) => updateItem(category.id, item.id, 'answer', e.target.value)}
-                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-300 text-sm focus:outline-none focus:border-indigo-500 transition-colors min-h-[250px] resize-y"
+                                    className="w-full bg-[#2f2f2f] border border-white/10 rounded-lg px-4 py-3 text-zinc-300 text-sm focus:outline-none focus:border-white/20 transition-colors min-h-[250px] resize-y"
                                     placeholder="Resposta..."
                                   />
                                 </div>
                                 <button
                                   onClick={() => deleteItem(category.id, item.id)}
-                                  className="text-zinc-600 hover:text-red-400 transition-colors p-2 h-fit rounded-lg hover:bg-red-400/10"
+                                  className="text-zinc-600 hover:text-red-400 transition-colors p-2 h-fit rounded-lg hover:bg-white/5"
                                   title="Excluir Pergunta"
                                 >
                                   <Trash2 className="w-5 h-5" />
@@ -663,7 +686,7 @@ export default function AdminPage() {
                         
                         <button
                           onClick={() => addItem(category.id)}
-                          className="w-full py-3 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-400 hover:text-white hover:border-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2 font-medium"
+                          className="w-full py-3 border border-dashed border-white/20 rounded-xl text-zinc-400 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all flex items-center justify-center gap-2 font-medium"
                         >
                           <Plus className="w-5 h-5" />
                           Adicionar Nova Pergunta
@@ -677,7 +700,7 @@ export default function AdminPage() {
 
             <button
               onClick={addCategory}
-              className="w-full py-4 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-400 hover:text-white hover:border-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2 font-medium text-lg"
+              className="w-full py-4 border border-dashed border-white/20 rounded-2xl text-zinc-400 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all flex items-center justify-center gap-2 font-medium text-lg"
             >
               <Plus className="w-6 h-6" />
               Adicionar Nova Categoria
@@ -685,16 +708,16 @@ export default function AdminPage() {
           </div>
         </DragDropContext>
         ) : activeTab === 'users' ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
+          <div className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-white mb-4">Gerenciar Usuários</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">Gerenciar Usuários</h2>
               {isLoadingUsers ? (
-                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-500" /></div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-zinc-800 text-zinc-400 text-sm">
+                      <tr className="border-b border-white/10 text-zinc-400 text-sm">
                         <th className="py-3 px-4 font-medium">E-mail</th>
                         <th className="py-3 px-4 font-medium">Cargo</th>
                         <th className="py-3 px-4 font-medium">Status</th>
@@ -705,10 +728,10 @@ export default function AdminPage() {
                       {usersList.map(u => {
                         const isOnline = u.isOnline && u.lastActive && (Date.now() - u.lastActive < 120000);
                         return (
-                        <tr key={u.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                        <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                           <td className="py-3 px-4 text-zinc-300">{u.email}</td>
                           <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-white/10 text-white border border-white/20' : 'bg-[#212121] text-zinc-400 border border-white/10'}`}>
                               {u.role === 'admin' ? 'Admin' : 'Membro'}
                             </span>
                           </td>
@@ -722,7 +745,7 @@ export default function AdminPage() {
                             <button
                               onClick={() => toggleUserRole(u.id, u.role)}
                               disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com'}
-                              className="text-sm px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="text-sm px-3 py-1.5 rounded-lg bg-[#212121] hover:bg-white/10 text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
                             >
                               {u.role === 'admin' ? 'Remover Admin' : 'Tornar Admin'}
                             </button>
@@ -744,7 +767,7 @@ export default function AdminPage() {
           </div>
         ) : activeTab === 'fix' ? (
           <div 
-            className={`bg-zinc-900 border-2 rounded-2xl overflow-hidden shadow-lg transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-500/10' : 'border-zinc-800'}`}
+            className={`bg-[#2f2f2f] border rounded-2xl overflow-hidden shadow-sm transition-colors ${isDragging ? 'border-white bg-white/5' : 'border-white/10'}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -753,14 +776,14 @@ export default function AdminPage() {
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Gerenciar Fix</h2>
+                <h2 className="text-xl font-semibold text-white">Gerenciar Fix</h2>
                 <button
                   onClick={saveFixData}
                   disabled={saveFixStatus === 'saving'}
-                  className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-6 py-2 rounded-xl font-medium transition-colors ${
                     saveFixStatus === 'success' ? 'bg-emerald-600 text-white' :
                     saveFixStatus === 'error' ? 'bg-red-600 text-white' :
-                    'bg-indigo-600 text-white hover:bg-indigo-500'
+                    'bg-white text-black hover:bg-zinc-200'
                   }`}
                 >
                   {saveFixStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
@@ -774,26 +797,26 @@ export default function AdminPage() {
               </div>
               
               {isLoadingFix ? (
-                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-500" /></div>
               ) : (
                 <div className="space-y-6">
                   {uploadProgress !== null && (
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4">
+                    <div className="bg-[#212121] border border-white/10 rounded-xl p-4">
                       <div className="flex justify-between text-sm mb-2">
                         <span className="text-zinc-300">Enviando arquivo...</span>
-                        <span className="text-indigo-400 font-medium">{Math.round(uploadProgress)}%</span>
+                        <span className="text-white font-medium">{Math.round(uploadProgress)}%</span>
                       </div>
-                      <div className="w-full bg-zinc-800 rounded-full h-2">
-                        <div className="bg-indigo-500 h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                      <div className="w-full bg-[#2f2f2f] rounded-full h-2">
+                        <div className="bg-white h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
                       </div>
                     </div>
                   )}
-                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 mb-6">
-                    <p className="text-indigo-300 text-sm flex items-center gap-2 mb-3">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+                    <p className="text-zinc-300 text-sm flex items-center gap-2 mb-3">
                       💡 Dica: Você pode arrastar um arquivo, usar Ctrl+V nesta área ou clicar no botão abaixo para fazer upload automático e preencher o nome.
                     </p>
                     <div className="flex items-center gap-4">
-                      <label className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                      <label className="cursor-pointer bg-white text-black hover:bg-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                         Selecionar Arquivo
                         <input 
                           type="file" 
@@ -814,7 +837,7 @@ export default function AdminPage() {
                       type="text"
                       value={fixData.title}
                       onChange={(e) => setFixData({ ...fixData, title: e.target.value })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
                       placeholder="Ex: Correção de Bugs v1.2.0"
                     />
                   </div>
@@ -824,7 +847,7 @@ export default function AdminPage() {
                       type="text"
                       value={fixData.version}
                       onChange={(e) => setFixData({ ...fixData, version: e.target.value })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
                       placeholder="Ex: 1.2.0"
                     />
                   </div>
@@ -834,7 +857,7 @@ export default function AdminPage() {
                       type="url"
                       value={fixData.downloadUrl}
                       onChange={(e) => setFixData({ ...fixData, downloadUrl: e.target.value })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
                       placeholder="Ex: https://link-para-o-arquivo.com/fix.zip"
                     />
                   </div>
@@ -843,7 +866,7 @@ export default function AdminPage() {
                     <textarea
                       value={fixData.description}
                       onChange={(e) => setFixData({ ...fixData, description: e.target.value })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors min-h-[150px] resize-y"
+                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors min-h-[150px] resize-y"
                       placeholder="Descreva o que foi corrigido nesta versão..."
                     />
                   </div>
@@ -852,19 +875,19 @@ export default function AdminPage() {
             </div>
           </div>
         ) : activeTab === 'bot' ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
-            <div className="bg-zinc-800/50 px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+          <div className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-[#2f2f2f] px-6 py-4 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Bot className="w-5 h-5 text-indigo-400" />
-                <h2 className="text-lg font-bold text-white">Configurações do Bot (IA)</h2>
+                <Bot className="w-5 h-5 text-white" />
+                <h2 className="text-lg font-semibold text-white">Configurações do Bot (IA)</h2>
               </div>
               <button
                 onClick={saveBotSettings}
                 disabled={saveBotStatus === 'saving'}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors ${
                   saveBotStatus === 'success' ? 'bg-emerald-600 text-white' :
                   saveBotStatus === 'error' ? 'bg-red-600 text-white' :
-                  'bg-indigo-600 text-white hover:bg-indigo-500'
+                  'bg-white text-black hover:bg-zinc-200'
                 }`}
               >
                 {saveBotStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
@@ -879,23 +902,23 @@ export default function AdminPage() {
             <div className="p-6">
               {isLoadingBot ? (
                 <div className="flex justify-center py-12">
-                  <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
                 </div>
               ) : (
                 <div className="space-y-6 max-w-2xl">
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between">
+                  <div className="bg-[#212121] border border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between">
                     <div>
                       <h3 className="text-lg font-medium text-white mb-1">Uso Diário</h3>
                       <p className="text-zinc-400 text-sm">Quantidade de mensagens respondidas pelo bot hoje.</p>
                       <p className="text-xs text-zinc-500 mt-1">Último reset: {botSettings.lastResetDate || 'Nunca'}</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-indigo-400">
+                      <div className="text-3xl font-bold text-white">
                         {botSettings.dailyGenerations} <span className="text-zinc-500 text-xl">/ {botSettings.dailyLimit}</span>
                       </div>
-                      <div className="w-full bg-zinc-800 rounded-full h-2 mt-3 overflow-hidden">
+                      <div className="w-full bg-[#2f2f2f] rounded-full h-2 mt-3 overflow-hidden">
                         <div 
-                          className={`h-2 rounded-full ${botSettings.dailyGenerations >= botSettings.dailyLimit ? 'bg-red-500' : 'bg-indigo-500'}`}
+                          className={`h-2 rounded-full ${botSettings.dailyGenerations >= botSettings.dailyLimit ? 'bg-red-500' : 'bg-white'}`}
                           style={{ width: `${Math.min(100, (botSettings.dailyGenerations / botSettings.dailyLimit) * 100)}%` }}
                         ></div>
                       </div>
@@ -909,7 +932,7 @@ export default function AdminPage() {
                       min="1"
                       value={botSettings.dailyLimit}
                       onChange={(e) => setBotSettings({ ...botSettings, dailyLimit: parseInt(e.target.value) || 100 })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
                       placeholder="Ex: 1000"
                     />
                     <p className="text-xs text-zinc-500 mt-2">
@@ -924,7 +947,7 @@ export default function AdminPage() {
                       min="1"
                       value={botSettings.userDailyLimit}
                       onChange={(e) => setBotSettings({ ...botSettings, userDailyLimit: parseInt(e.target.value) || 10 })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
                       placeholder="Ex: 10"
                     />
                     <p className="text-xs text-zinc-500 mt-2">
@@ -939,7 +962,7 @@ export default function AdminPage() {
                       min="1"
                       value={botSettings.rpmLimit}
                       onChange={(e) => setBotSettings({ ...botSettings, rpmLimit: parseInt(e.target.value) || 15 })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
                       placeholder="Ex: 15"
                     />
                     <p className="text-xs text-zinc-500 mt-2">
@@ -959,14 +982,14 @@ export default function AdminPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-md w-full shadow-2xl"
+            className="bg-[#2f2f2f] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-sm"
           >
             <h3 className="text-xl font-semibold text-white mb-2">{confirmModal.title}</h3>
             <p className="text-zinc-400 mb-6">{confirmModal.message}</p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-                className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white bg-[#212121] hover:bg-white/5 rounded-xl transition-colors border border-white/10"
               >
                 Cancelar
               </button>
@@ -975,7 +998,7 @@ export default function AdminPage() {
                   confirmModal.onConfirm();
                   setConfirmModal({ ...confirmModal, isOpen: false });
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
               >
                 Confirmar
               </button>

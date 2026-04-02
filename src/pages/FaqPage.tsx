@@ -32,26 +32,26 @@ export default function FaqPage() {
     const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
     return parts.map((part, i) => 
       part.toLowerCase() === highlight.toLowerCase() ? 
-        <span key={i} className="bg-indigo-500/30 text-indigo-300 rounded px-1">{part}</span> : part
+        <span key={i} className="bg-white/20 text-white rounded px-1">{part}</span> : part
     );
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-full bg-[#212121] text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">Central de Ajuda</h1>
-          <p className="text-zinc-400 text-lg">Encontre soluções rápidas para os problemas mais comuns.</p>
+          <h1 className="text-3xl font-semibold text-white mb-3">Central de Ajuda</h1>
+          <p className="text-zinc-400 text-base">Encontre soluções rápidas para os problemas mais comuns.</p>
         </div>
 
         {/* Search Bar */}
-        <div className="relative mb-12">
+        <div className="relative mb-12 max-w-2xl mx-auto">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-zinc-500" />
+            <Search className="h-5 w-5 text-zinc-400" />
           </div>
           <input
             type="text"
-            className="block w-full pl-12 pr-4 py-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+            className="block w-full pl-12 pr-4 py-3.5 bg-[#2f2f2f] border border-white/10 rounded-2xl text-white placeholder-zinc-400 focus:outline-none focus:border-white/20 transition-colors shadow-sm text-[15px]"
             placeholder="Pesquise por erros, guias ou palavras-chave..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -59,26 +59,26 @@ export default function FaqPage() {
         </div>
 
         {filteredData.length === 0 ? (
-          <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800">
-            <AlertCircle className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-white mb-2">Nenhum resultado encontrado</h3>
-            <p className="text-zinc-400">Tente usar outras palavras-chave ou abra um ticket no Discord.</p>
+          <div className="text-center py-12 bg-[#2f2f2f] rounded-2xl border border-white/10 max-w-2xl mx-auto">
+            <AlertCircle className="w-10 h-10 text-zinc-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-white mb-2">Nenhum resultado encontrado</h3>
+            <p className="text-zinc-400 text-sm">Tente usar outras palavras-chave ou abra um ticket no Discord.</p>
           </div>
         ) : (
           <div className="flex flex-col md:flex-row gap-8">
             {/* Categories Sidebar (only show if not searching) */}
             {!searchTerm && (
               <div className="w-full md:w-64 shrink-0">
-                <div className="sticky top-24 space-y-2">
-                  <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4 px-3">Categorias</h3>
+                <div className="sticky top-8 space-y-1">
+                  <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-3">Categorias</h3>
                   {faqData.map(category => (
                     <button
                       key={category.id}
                       onClick={() => setActiveCategory(category.id)}
-                      className={`w-full text-left px-4 py-3 rounded-xl transition-all ${
+                      className={`w-full text-left px-4 py-2.5 rounded-xl transition-colors text-sm ${
                         activeCategory === category.id 
-                          ? 'bg-indigo-600 text-white font-medium shadow-md shadow-indigo-500/20' 
-                          : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+                          ? 'bg-[#2f2f2f] text-white font-medium border border-white/10' 
+                          : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200 border border-transparent'
                       }`}
                     >
                       {category.title}
@@ -96,8 +96,8 @@ export default function FaqPage() {
                 return (
                   <div key={category.id} className="space-y-4">
                     {searchTerm && (
-                      <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                        <span className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-sm text-indigo-400">
+                      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <span className="w-6 h-6 rounded bg-[#2f2f2f] flex items-center justify-center text-xs text-zinc-300 border border-white/10">
                           {category.id}
                         </span>
                         {category.title}
@@ -112,23 +112,23 @@ export default function FaqPage() {
                             key={item.id}
                             initial={false}
                             className={`border rounded-2xl overflow-hidden transition-colors ${
-                              isExpanded ? 'bg-zinc-900 border-indigo-500/30' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
+                              isExpanded ? 'bg-[#2f2f2f] border-white/20' : 'bg-[#2f2f2f]/50 border-white/10 hover:border-white/20'
                             }`}
                           >
                             <button
                               onClick={() => toggleItem(item.id)}
-                              className="w-full px-6 py-5 flex items-center justify-between text-left focus:outline-none"
+                              className="w-full px-5 py-4 flex items-center justify-between text-left focus:outline-none"
                             >
-                              <div className="flex items-center gap-4 pr-4">
-                                <span className="text-xs font-mono text-zinc-500 bg-zinc-950 px-2 py-1 rounded shrink-0">
+                              <div className="flex items-center gap-3 pr-4">
+                                <span className="text-xs font-mono text-zinc-500 bg-[#212121] px-2 py-1 rounded shrink-0 border border-white/5">
                                   {item.id}
                                 </span>
-                                <span className="font-medium text-white text-lg break-words">
+                                <span className="font-medium text-zinc-200 text-[15px] break-words">
                                   {searchTerm ? highlightText(item.question, searchTerm) : item.question}
                                 </span>
                               </div>
                               {isExpanded ? (
-                                <ChevronUp className="w-5 h-5 text-indigo-400 shrink-0" />
+                                <ChevronUp className="w-5 h-5 text-zinc-400 shrink-0" />
                               ) : (
                                 <ChevronDown className="w-5 h-5 text-zinc-500 shrink-0" />
                               )}
@@ -142,8 +142,8 @@ export default function FaqPage() {
                                   exit={{ height: 0, opacity: 0 }}
                                   transition={{ duration: 0.2 }}
                                 >
-                                  <div className="px-6 pb-6 pt-2 text-zinc-300">
-                                    <DiscordMarkdown className="text-sm md:text-base break-words">
+                                  <div className="px-5 pb-5 pt-1 text-zinc-300 border-t border-white/5 mt-2">
+                                    <DiscordMarkdown className="text-[15px] leading-relaxed break-words pt-3">
                                       {item.answer}
                                     </DiscordMarkdown>
                                   </div>

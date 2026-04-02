@@ -39,65 +39,67 @@ export default function FixPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-full bg-[#212121] text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-6">
-            <Wrench className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#2f2f2f] border border-white/10 text-zinc-300 mb-6">
+            <Wrench className="w-6 h-6" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-4">Correção do Jogo</h1>
-          <p className="text-zinc-400 text-lg">Baixe a versão mais recente do arquivo de correção para garantir que o jogo funcione perfeitamente.</p>
+          <h1 className="text-3xl font-semibold text-white mb-3">Correção do Jogo</h1>
+          <p className="text-zinc-400 text-base">Baixe a versão mais recente do arquivo de correção para garantir que o jogo funcione perfeitamente.</p>
         </div>
 
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+            <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
           </div>
         ) : fixData && fixData.title ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl"
+            className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm"
           >
-            <div className="p-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+            <div className="p-6 sm:p-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-white/10 pb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">{fixData.title}</h2>
-                  <div className="flex items-center gap-4 text-sm text-zinc-400">
-                    <span className="flex items-center gap-1 bg-zinc-800 px-2 py-1 rounded-md">
+                  <h2 className="text-xl font-semibold text-white mb-3">{fixData.title}</h2>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-400">
+                    <span className="flex items-center gap-1.5 bg-[#212121] px-2.5 py-1 rounded-lg border border-white/5">
                       <Wrench className="w-4 h-4" />
                       Versão {fixData.version}
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1.5">
                       <Clock className="w-4 h-4" />
                       Atualizado em: {fixData.updatedAt}
                     </span>
                   </div>
                 </div>
-                <a
-                  href={fixData.downloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-500/20 shrink-0"
-                >
-                  <Download className="w-5 h-5" />
-                  Baixar Correção
-                </a>
-                {isAdmin && (
-                  <button
-                    onClick={() => navigate('/admin?tab=fix')}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-colors shrink-0"
+                <div className="flex items-center gap-3 shrink-0">
+                  <a
+                    href={fixData.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-black font-medium rounded-xl hover:bg-zinc-200 transition-colors"
                   >
-                    <Edit className="w-5 h-5" />
-                    Editar Fix
-                  </button>
-                )}
+                    <Download className="w-4 h-4" />
+                    Baixar
+                  </a>
+                  {isAdmin && (
+                    <button
+                      onClick={() => navigate('/admin?tab=fix')}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#212121] hover:bg-white/5 text-zinc-300 font-medium rounded-xl border border-white/10 transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Editar
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="prose prose-invert max-w-none">
-                <h3 className="text-lg font-semibold text-white mb-4">Detalhes da Atualização</h3>
-                <div className="bg-zinc-950 rounded-xl p-6 border border-zinc-800/50">
-                  <DiscordMarkdown>
+                <h3 className="text-base font-medium text-white mb-4">Detalhes da Atualização</h3>
+                <div className="bg-[#212121] rounded-xl p-5 border border-white/5">
+                  <DiscordMarkdown className="text-[15px] leading-relaxed text-zinc-300">
                     {fixData.description}
                   </DiscordMarkdown>
                 </div>
@@ -105,10 +107,10 @@ export default function FixPage() {
             </div>
           </motion.div>
         ) : (
-          <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800">
-            <AlertCircle className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-white mb-2">Nenhuma correção disponível</h3>
-            <p className="text-zinc-400">No momento, não há arquivos de correção publicados.</p>
+          <div className="text-center py-12 bg-[#2f2f2f] rounded-2xl border border-white/10">
+            <AlertCircle className="w-10 h-10 text-zinc-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-white mb-2">Nenhuma correção disponível</h3>
+            <p className="text-zinc-400 text-sm">No momento, não há arquivos de correção publicados.</p>
           </div>
         )}
       </div>

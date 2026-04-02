@@ -76,7 +76,14 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auth Listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let unsubscribeUser: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      if (unsubscribeUser) {
+        unsubscribeUser();
+        unsubscribeUser = null;
+      }
+
       setUser(currentUser);
       
       if (currentUser) {
@@ -95,22 +102,33 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch (e) {
             console.error("Error creating admin doc", e);
           }
+          setIsAuthReady(true);
         } else {
           try {
-            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-            setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
+            unsubscribeUser = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
+              setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
+              setIsAuthReady(true);
+            }, (error) => {
+              console.error("Error checking admin status:", error);
+              setIsAdmin(false);
+              setIsAuthReady(true);
+            });
           } catch (error) {
             console.error("Error checking admin status:", error);
             setIsAdmin(false);
+            setIsAuthReady(true);
           }
         }
       } else {
         setIsAdmin(false);
+        setIsAuthReady(true);
       }
-      setIsAuthReady(true);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUser) unsubscribeUser();
+    };
   }, []);
 
   // Presence Tracker

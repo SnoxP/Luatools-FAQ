@@ -9,7 +9,7 @@ import Home from './pages/Home';
 import FaqPage from './pages/FaqPage';
 import AdminPage from './pages/AdminPage';
 import FixPage from './pages/FixPage';
-import Chatbot from './components/Chatbot';
+import ProfilePage from './pages/ProfilePage';
 import { FaqProvider } from './context/FaqContext';
 
 export default function App() {
@@ -22,9 +22,9 @@ export default function App() {
             <Route path="faq" element={<FaqPage />} />
             <Route path="fix" element={<FixPage />} />
             <Route path="admin" element={<AdminPage />} />
+            <Route path="perfil" element={<ProfilePage />} />
           </Route>
         </Routes>
-        <Chatbot />
       </Router>
     </FaqProvider>
   );
