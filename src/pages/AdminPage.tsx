@@ -4,6 +4,7 @@ import { useFaq } from '../context/FaqContext';
 import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
+import { GoogleGenAI } from '@google/genai';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -40,6 +41,8 @@ export default function AdminPage() {
   const [botSettings, setBotSettings] = useState({ dailyLimit: 100, userDailyLimit: 10, rpmLimit: 15, dailyGenerations: 0, lastResetDate: '' });
   const [isLoadingBot, setIsLoadingBot] = useState(false);
   const [saveBotStatus, setSaveBotStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [botStatus, setBotStatus] = useState<'checking' | 'online' | 'error'>('checking');
+  const [botErrorReason, setBotErrorReason] = useState<string>('');
 
   // Sync local data when faqData changes (e.g., loaded from Firestore)
   useEffect(() => {
@@ -73,6 +76,7 @@ export default function AdminPage() {
         fetchFixData();
       } else if (activeTab === 'bot') {
         fetchBotSettings();
+        checkBotStatus();
       }
     }
 
@@ -80,6 +84,27 @@ export default function AdminPage() {
       if (unsubscribeUsers) unsubscribeUsers();
     };
   }, [isAdmin, activeTab]);
+
+  const checkBotStatus = async () => {
+    setBotStatus('checking');
+    setBotErrorReason('');
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error('Chave da API (VITE_GEMINI_API_KEY) não encontrada nas variáveis de ambiente.');
+      }
+      const ai = new GoogleGenAI({ apiKey });
+      await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: 'ping',
+        config: { maxOutputTokens: 1 }
+      });
+      setBotStatus('online');
+    } catch (err: any) {
+      setBotStatus('error');
+      setBotErrorReason(err.message || String(err));
+    }
+  };
 
   const fetchBotSettings = async () => {
     setIsLoadingBot(true);
@@ -179,6 +204,19 @@ export default function AdminPage() {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           setFixData(prev => ({ ...prev, downloadUrl: downloadURL }));
           setUploadProgress(null);
+          
+          // Auto-save the new URL to prevent losing it if user forgets to click save
+          try {
+            const { setDoc } = await import('../firebase');
+            const now = new Date().toLocaleDateString('pt-BR');
+            await setDoc(doc(db, 'content', 'game_fix'), {
+              title: fileNameWithoutExt,
+              downloadUrl: downloadURL,
+              updatedAt: now
+            }, { merge: true });
+          } catch (e) {
+            console.error("Error auto-saving fix data:", e);
+          }
         }
       );
     } catch (err) {
@@ -214,30 +252,18 @@ export default function AdminPage() {
   const saveFixData = async () => {
     setSaveFixStatus('saving');
     try {
+      const { setDoc } = await import('../firebase');
       const now = new Date().toLocaleDateString('pt-BR');
-      await updateDoc(doc(db, 'content', 'game_fix'), {
+      await setDoc(doc(db, 'content', 'game_fix'), {
         ...fixData,
         updatedAt: now
-      });
+      }, { merge: true });
       setSaveFixStatus('success');
       setTimeout(() => setSaveFixStatus('idle'), 3000);
     } catch (err) {
       console.error("Error saving fix data", err);
-      // If document doesn't exist, we might need setDoc instead of updateDoc, 
-      // but assuming it's created or we can handle it. Let's use setDoc just in case.
-      try {
-        const { setDoc } = await import('../firebase');
-        const now = new Date().toLocaleDateString('pt-BR');
-        await setDoc(doc(db, 'content', 'game_fix'), {
-          ...fixData,
-          updatedAt: now
-        });
-        setSaveFixStatus('success');
-        setTimeout(() => setSaveFixStatus('idle'), 3000);
-      } catch (e) {
-        setSaveFixStatus('error');
-        setTimeout(() => setSaveFixStatus('idle'), 3000);
-      }
+      setSaveFixStatus('error');
+      setTimeout(() => setSaveFixStatus('idle'), 3000);
     }
   };
 
@@ -904,6 +930,36 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="space-y-6 max-w-2xl">
+                  <div className="bg-[#212121] border border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium text-white mb-1">Status do Bot</h3>
+                      <p className="text-zinc-400 text-sm">Verifica se a API do Gemini está respondendo corretamente.</p>
+                      {botStatus === 'error' && (
+                        <p className="text-xs text-red-400 mt-2 bg-red-500/10 p-2 rounded border border-red-500/20">
+                          Erro: {botErrorReason}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-center shrink-0">
+                      {botStatus === 'checking' ? (
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-sm font-medium border border-yellow-500/20">
+                          <Loader2 className="w-4 h-4 animate-spin" /> Verificando...
+                        </span>
+                      ) : botStatus === 'online' ? (
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-sm font-medium border border-emerald-500/20">
+                          <CheckCircle2 className="w-4 h-4" /> Operacional
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 text-red-500 text-sm font-medium border border-red-500/20">
+                          <AlertTriangle className="w-4 h-4" /> Erro na API
+                        </span>
+                      )}
+                      <button onClick={checkBotStatus} className="block mt-2 text-xs text-zinc-500 hover:text-white transition-colors mx-auto">
+                        Testar Novamente
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="bg-[#212121] border border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between">
                     <div>
                       <h3 className="text-lg font-medium text-white mb-1">Uso Diário</h3>

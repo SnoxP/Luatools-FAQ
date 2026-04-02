@@ -17,7 +17,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (isAuthReady && !user) {
-      navigate('/admin');
+      navigate('/painel-admin');
     }
   }, [user, isAuthReady, navigate]);
 

@@ -21,7 +21,7 @@ export default function App() {
             <Route index element={<Home />} />
             <Route path="faq" element={<FaqPage />} />
             <Route path="fix" element={<FixPage />} />
-            <Route path="admin" element={<AdminPage />} />
+            <Route path="painel-admin" element={<AdminPage />} />
             <Route path="perfil" element={<ProfilePage />} />
           </Route>
         </Routes>

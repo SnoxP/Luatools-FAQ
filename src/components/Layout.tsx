@@ -17,12 +17,12 @@ export default function Layout() {
 
   if (user) {
     if (isAdmin) {
-      navLinks.push({ name: 'Painel Admin', path: '/admin', icon: <Settings className="w-5 h-5 mr-3" /> });
+      navLinks.push({ name: 'Painel Admin', path: '/painel-admin', icon: <Settings className="w-5 h-5 mr-3" /> });
     } else {
       navLinks.push({ name: 'Perfil', path: '/perfil', icon: <UserIcon className="w-5 h-5 mr-3" /> });
     }
   } else {
-    navLinks.push({ name: 'Login', path: '/admin', icon: <Settings className="w-5 h-5 mr-3" /> });
+    navLinks.push({ name: 'Login', path: '/painel-admin', icon: <Settings className="w-5 h-5 mr-3" /> });
   }
 
   return (

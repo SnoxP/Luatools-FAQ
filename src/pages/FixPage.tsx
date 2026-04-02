@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Wrench, Download, Clock, AlertCircle, Loader2, Edit } from 'lucide-react';
-import { db, doc, getDoc } from '../firebase';
+import { db, doc, getDoc, deleteDoc } from '../firebase';
 import DiscordMarkdown from '../components/DiscordMarkdown';
 import { useFaq } from '../context/FaqContext';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,7 @@ interface FixData {
 export default function FixPage() {
   const [fixData, setFixData] = useState<FixData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { isAdmin } = useFaq();
   const navigate = useNavigate();
 
@@ -37,6 +38,21 @@ export default function FixPage() {
 
     fetchFixData();
   }, []);
+
+  const handleDelete = async () => {
+    if (!window.confirm('Tem certeza que deseja excluir esta correção?')) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(db, 'content', 'game_fix'));
+      setFixData(null);
+    } catch (error) {
+      console.error("Error deleting fix:", error);
+      alert("Erro ao excluir a correção.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="min-h-full bg-[#212121] text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -76,22 +92,42 @@ export default function FixPage() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <a
-                    href={fixData.downloadUrl}
-                    target="_blank"
+                    href={fixData.downloadUrl || '#'}
+                    target={fixData.downloadUrl ? "_blank" : undefined}
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-black font-medium rounded-xl hover:bg-zinc-200 transition-colors"
+                    className={`flex items-center justify-center gap-2 px-5 py-2.5 font-medium rounded-xl transition-colors ${
+                      fixData.downloadUrl 
+                        ? 'bg-white text-black hover:bg-zinc-200' 
+                        : 'bg-white/10 text-zinc-500 cursor-not-allowed'
+                    }`}
+                    onClick={(e) => {
+                      if (!fixData.downloadUrl) {
+                        e.preventDefault();
+                        alert("O link de download ainda não está disponível.");
+                      }
+                    }}
                   >
                     <Download className="w-4 h-4" />
                     Baixar
                   </a>
                   {isAdmin && (
-                    <button
-                      onClick={() => navigate('/admin?tab=fix')}
-                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#212121] hover:bg-white/5 text-zinc-300 font-medium rounded-xl border border-white/10 transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                      Editar
-                    </button>
+                    <>
+                      <button
+                        onClick={() => navigate('/painel-admin?tab=fix')}
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#212121] hover:bg-white/5 text-zinc-300 font-medium rounded-xl border border-white/10 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Editar
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-medium rounded-xl border border-red-500/20 transition-colors disabled:opacity-50"
+                      >
+                        {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
+                        Excluir
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
