@@ -198,7 +198,7 @@ export default function Home() {
         };
       });
 
-      const response = await ai.models.generateContent({
+      const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3-flash-preview',
         contents,
         config: {
@@ -207,13 +207,28 @@ export default function Home() {
         }
       });
       
-      const newModelMsg: Message = {
-        id: (Date.now() + 1).toString(),
+      const newModelMsgId = (Date.now() + 1).toString();
+      
+      // Adiciona a mensagem vazia primeiro para começar a preencher
+      setMessages(prev => [...prev, {
+        id: newModelMsgId,
         role: 'model',
-        text: response.text || 'Ocorreu um erro ao processar a resposta.'
-      };
+        text: ''
+      }]);
 
-      setMessages(prev => [...prev, newModelMsg]);
+      let fullText = '';
+      for await (const chunk of responseStream) {
+        fullText += chunk.text;
+        setMessages(prev => prev.map(msg => 
+          msg.id === newModelMsgId ? { ...msg, text: fullText } : msg
+        ));
+      }
+
+      if (!fullText) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === newModelMsgId ? { ...msg, text: 'Ocorreu um erro ao processar a resposta.' } : msg
+        ));
+      }
     } catch (error: any) {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, {
