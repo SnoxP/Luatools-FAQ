@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
-import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon } from 'lucide-react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon, AlertCircle } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
 import { GoogleGenAI } from '@google/genai';
@@ -183,11 +183,24 @@ export default function AdminPage() {
     // Set title based on file name (without extension)
     const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
     setFixData(prev => ({ ...prev, title: fileNameWithoutExt }));
+    setUploadProgress(0);
 
     try {
       const { storage, ref, uploadBytesResumable, getDownloadURL } = await import('../firebase');
       const storageRef = ref(storage, `fixes/${Date.now()}_${file.name}`);
       const uploadTask = uploadBytesResumable(storageRef, file);
+
+      // Timeout to detect hanging uploads (e.g., Storage not enabled in console)
+      const timeoutId = setTimeout(() => {
+        setUploadProgress(currentProgress => {
+          if (currentProgress !== null && currentProgress < 100) {
+            uploadTask.cancel();
+            alert("O upload está demorando muito e parece ter travado.\n\nIsso geralmente acontece quando o 'Firebase Storage' não está ativado no seu projeto Firebase.\n\nPara resolver:\n1. Acesse o Console do Firebase\n2. Vá em 'Storage' no menu lateral\n3. Clique em 'Começar' (Get Started)\n4. Aceite as regras padrão e conclua a configuração.");
+            return null;
+          }
+          return currentProgress;
+        });
+      }, 15000); // 15 seconds timeout
 
       uploadTask.on(
         'state_changed',
@@ -196,11 +209,13 @@ export default function AdminPage() {
           setUploadProgress(progress);
         },
         (error) => {
+          clearTimeout(timeoutId);
           console.error("Upload failed", error);
           setUploadProgress(null);
-          alert("Erro ao fazer upload do arquivo. Verifique se as regras do Firebase Storage permitem uploads (ex: allow write: if request.auth != null;).");
+          alert(`Erro ao fazer upload do arquivo: ${error.message}\n\nVerifique se o Firebase Storage está ativado e se as regras permitem upload.`);
         },
         async () => {
+          clearTimeout(timeoutId);
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           setFixData(prev => ({ ...prev, downloadUrl: downloadURL }));
           setUploadProgress(null);
@@ -214,6 +229,7 @@ export default function AdminPage() {
               downloadUrl: downloadURL,
               updatedAt: now
             }, { merge: true });
+            alert("Arquivo enviado e link salvo com sucesso no banco de dados!");
           } catch (e) {
             console.error("Error auto-saving fix data:", e);
           }
@@ -222,6 +238,7 @@ export default function AdminPage() {
     } catch (err) {
       console.error("Error initializing upload", err);
       setUploadProgress(null);
+      alert("Erro ao iniciar o upload. Verifique a configuração do Firebase.");
     }
   };
 
@@ -643,13 +660,15 @@ export default function AdminPage() {
                       placeholder="Nome da Categoria"
                     />
                   </div>
-                  <button
-                    onClick={() => deleteCategory(category.id)}
-                    className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-white/5"
-                    title="Excluir Categoria"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => deleteCategory(category.id)}
+                      className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-white/5"
+                      title="Excluir Categoria"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Category Items */}
@@ -790,14 +809,7 @@ export default function AdminPage() {
             </div>
           </div>
         ) : activeTab === 'fix' ? (
-          <div 
-            className={`bg-[#2f2f2f] border rounded-2xl overflow-hidden shadow-sm transition-colors ${isDragging ? 'border-white bg-white/5' : 'border-white/10'}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onPaste={handlePaste}
-            tabIndex={0}
-          >
+          <div className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-white">Gerenciar Fix</h2>
@@ -824,36 +836,16 @@ export default function AdminPage() {
                 <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-500" /></div>
               ) : (
                 <div className="space-y-6">
-                  {uploadProgress !== null && (
-                    <div className="bg-[#212121] border border-white/10 rounded-xl p-4">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-zinc-300">Enviando arquivo...</span>
-                        <span className="text-white font-medium">{Math.round(uploadProgress)}%</span>
-                      </div>
-                      <div className="w-full bg-[#2f2f2f] rounded-full h-2">
-                        <div className="bg-white h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
-                    <p className="text-zinc-300 text-sm flex items-center gap-2 mb-3">
-                      💡 Dica: Você pode arrastar um arquivo, usar Ctrl+V nesta área ou clicar no botão abaixo para fazer upload automático e preencher o nome.
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-5 mb-6">
+                    <h3 className="text-blue-400 font-medium mb-2 flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5" />
+                      Como adicionar um Fix
+                    </h3>
+                    <p className="text-blue-300/80 text-sm leading-relaxed">
+                      Para evitar custos com armazenamento e limites de tamanho no Firebase, recomendamos hospedar seus arquivos de correção em serviços gratuitos e ilimitados como <strong>MediaFire, Google Drive ou Mega</strong>.
+                      <br /><br />
+                      Faça o upload do arquivo no serviço de sua preferência, copie o link público de download e cole-o no campo "Link de Download" abaixo.
                     </p>
-                    <div className="flex items-center gap-4">
-                      <label className="cursor-pointer bg-white text-black hover:bg-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        Selecionar Arquivo
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              handleFileUpload(e.target.files[0]);
-                            }
-                          }}
-                        />
-                      </label>
-                      <span className="text-zinc-500 text-sm">Nenhum arquivo selecionado</span>
-                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-2">Título da Correção</label>

@@ -9,6 +9,7 @@ export interface FaqCategory {
   id: string;
   title: string;
   items: FaqItem[];
+  adminOnly?: boolean;
 }
 
 export const defaultFaq: FaqCategory[] = [

@@ -1,31 +1,80 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, AlertCircle, Edit2, Save, X } from 'lucide-react';
 import { useFaq } from '../context/FaqContext';
 import DiscordMarkdown from '../components/DiscordMarkdown';
 
 export default function FaqPage() {
-  const { faqData } = useFaq();
+  const { faqData, updateFaqData, isAdmin } = useFaq();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string>(faqData[0]?.id || '');
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  
+  // Edit state
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editQuestion, setEditQuestion] = useState('');
+  const [editAnswer, setEditAnswer] = useState('');
+
+  // Filter categories based on admin status
+  const visibleFaqData = useMemo(() => {
+    return faqData.filter(category => isAdmin || !category.adminOnly);
+  }, [faqData, isAdmin]);
+
+  // Set initial active category when data loads
+  useEffect(() => {
+    if (visibleFaqData.length > 0 && !activeCategory) {
+      setActiveCategory(visibleFaqData[0].id);
+    }
+  }, [visibleFaqData, activeCategory]);
 
   const toggleItem = (id: string) => {
+    if (editingItemId === id) return; // Prevent collapse while editing
     setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const startEditing = (item: any) => {
+    setEditingItemId(item.id);
+    setEditQuestion(item.question);
+    setEditAnswer(item.answer);
+  };
+
+  const cancelEditing = () => {
+    setEditingItemId(null);
+    setEditQuestion('');
+    setEditAnswer('');
+  };
+
+  const saveEdit = async (categoryId: string, itemId: string) => {
+    const newData = faqData.map(category => {
+      if (category.id === categoryId) {
+        return {
+          ...category,
+          items: category.items.map(item => 
+            item.id === itemId 
+              ? { ...item, question: editQuestion, answer: editAnswer }
+              : item
+          )
+        };
+      }
+      return category;
+    });
+    
+    await updateFaqData(newData);
+    setEditingItemId(null);
+  };
+
   const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return faqData;
+    if (!searchTerm.trim()) return visibleFaqData;
 
     const term = searchTerm.toLowerCase();
-    return faqData.map(category => ({
+    return visibleFaqData.map(category => ({
       ...category,
       items: category.items.filter(item => 
         item.question.toLowerCase().includes(term) || 
         item.answer.toLowerCase().includes(term)
       )
     })).filter(category => category.items.length > 0);
-  }, [faqData, searchTerm]);
+  }, [visibleFaqData, searchTerm]);
 
   const highlightText = (text: string, highlight: string) => {
     if (!highlight.trim()) return text;
@@ -71,7 +120,7 @@ export default function FaqPage() {
               <div className="w-full md:w-64 shrink-0">
                 <div className="sticky top-8 space-y-1">
                   <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-3">Categorias</h3>
-                  {faqData.map(category => (
+                  {visibleFaqData.map(category => (
                     <button
                       key={category.id}
                       onClick={() => setActiveCategory(category.id)}
@@ -97,9 +146,6 @@ export default function FaqPage() {
                   <div key={category.id} className="space-y-4">
                     {searchTerm && (
                       <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <span className="w-6 h-6 rounded bg-[#2f2f2f] flex items-center justify-center text-xs text-zinc-300 border border-white/10">
-                          {category.id}
-                        </span>
                         {category.title}
                       </h2>
                     )}
@@ -107,6 +153,8 @@ export default function FaqPage() {
                     <div className="space-y-3">
                       {category.items.map(item => {
                         const isExpanded = expandedItems[item.id];
+                        const isEditing = editingItemId === item.id;
+                        
                         return (
                           <motion.div 
                             key={item.id}
@@ -119,18 +167,28 @@ export default function FaqPage() {
                               onClick={() => toggleItem(item.id)}
                               className="w-full px-5 py-4 flex items-center justify-between text-left focus:outline-none"
                             >
-                              <div className="flex items-center gap-3 pr-4">
-                                <span className="text-xs font-mono text-zinc-500 bg-[#212121] px-2 py-1 rounded shrink-0 border border-white/5">
-                                  {item.id}
-                                </span>
-                                <span className="font-medium text-zinc-200 text-[15px] break-words">
-                                  {searchTerm ? highlightText(item.question, searchTerm) : item.question}
-                                </span>
+                              <div className="flex items-center gap-3 pr-4 w-full">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={editQuestion}
+                                    onChange={(e) => setEditQuestion(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full bg-[#212121] border border-white/20 rounded-lg px-3 py-2 text-white font-medium focus:outline-none focus:border-white/40 transition-colors"
+                                    placeholder="Pergunta..."
+                                  />
+                                ) : (
+                                  <span className="font-medium text-zinc-200 text-[15px] break-words">
+                                    {searchTerm ? highlightText(item.question, searchTerm) : item.question}
+                                  </span>
+                                )}
                               </div>
-                              {isExpanded ? (
-                                <ChevronUp className="w-5 h-5 text-zinc-400 shrink-0" />
-                              ) : (
-                                <ChevronDown className="w-5 h-5 text-zinc-500 shrink-0" />
+                              {!isEditing && (
+                                isExpanded ? (
+                                  <ChevronUp className="w-5 h-5 text-zinc-400 shrink-0" />
+                                ) : (
+                                  <ChevronDown className="w-5 h-5 text-zinc-500 shrink-0" />
+                                )
                               )}
                             </button>
                             
@@ -143,9 +201,50 @@ export default function FaqPage() {
                                   transition={{ duration: 0.2 }}
                                 >
                                   <div className="px-5 pb-5 pt-1 text-zinc-300 border-t border-white/5 mt-2">
-                                    <DiscordMarkdown className="text-[15px] leading-relaxed break-words pt-3">
-                                      {item.answer}
-                                    </DiscordMarkdown>
+                                    {isEditing ? (
+                                      <div className="pt-3 space-y-4">
+                                        <textarea
+                                          value={editAnswer}
+                                          onChange={(e) => setEditAnswer(e.target.value)}
+                                          className="w-full bg-[#212121] border border-white/20 rounded-lg px-4 py-3 text-zinc-300 text-sm focus:outline-none focus:border-white/40 transition-colors min-h-[200px] resize-y"
+                                          placeholder="Resposta (suporta Markdown)..."
+                                        />
+                                        <div className="flex items-center justify-end gap-3">
+                                          <button
+                                            onClick={cancelEditing}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#212121] text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border border-white/10 text-sm font-medium"
+                                          >
+                                            <X className="w-4 h-4" />
+                                            Cancelar
+                                          </button>
+                                          <button
+                                            onClick={() => saveEdit(category.id, item.id)}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 transition-colors text-sm font-medium"
+                                          >
+                                            <Save className="w-4 h-4" />
+                                            Salvar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="pt-3">
+                                        <DiscordMarkdown className="text-[15px] leading-relaxed break-words">
+                                          {item.answer}
+                                        </DiscordMarkdown>
+                                        
+                                        {isAdmin && (
+                                          <div className="mt-6 flex justify-end">
+                                            <button
+                                              onClick={() => startEditing(item)}
+                                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#212121] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border border-white/5 text-sm font-medium"
+                                            >
+                                              <Edit2 className="w-4 h-4" />
+                                              Editar Guia
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 </motion.div>
                               )}
