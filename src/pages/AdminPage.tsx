@@ -352,7 +352,7 @@ export default function AdminPage() {
       if (cat.id === categoryId) {
         return {
           ...cat,
-          items: [...cat.items, { id: newItemId, question: 'Nova Pergunta', answer: 'Resposta aqui...' }]
+          items: [...cat.items, { id: newItemId, question: 'Nova Pergunta', answer: 'Resposta aqui...', author: user?.email || 'Desconhecido' }]
         };
       }
       return cat;
@@ -546,13 +546,6 @@ export default function AdminPage() {
             {activeTab === 'faq' && (
               <>
                 <button
-                  onClick={handleReset}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2f2f2f] text-zinc-300 hover:bg-white/5 hover:text-white transition-colors border border-white/10"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Restaurar Padrão
-                </button>
-                <button
                   onClick={handleSave}
                   disabled={saveStatus === 'saving'}
                   className={`flex items-center gap-2 px-6 py-2 rounded-xl font-medium transition-colors ${
@@ -670,6 +663,11 @@ export default function AdminPage() {
                                     className="w-full bg-[#2f2f2f] border border-white/10 rounded-lg px-4 py-3 text-zinc-300 text-sm focus:outline-none focus:border-white/20 transition-colors min-h-[250px] resize-y"
                                     placeholder="Resposta..."
                                   />
+                                  {item.author && (
+                                    <div className="text-xs text-zinc-500 flex items-center gap-1">
+                                      <span className="font-medium">Adicionado por:</span> {item.author}
+                                    </div>
+                                  )}
                                 </div>
                                 <button
                                   onClick={() => deleteItem(category.id, item.id)}

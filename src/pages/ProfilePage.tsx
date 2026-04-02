@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
 import { User as UserIcon, LogOut, Save, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
-import { db, doc, getDoc, updateDoc } from '../firebase';
+import { db, doc, getDoc, setDoc } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 
 export default function ProfilePage() {
@@ -48,11 +48,11 @@ export default function ProfilePage() {
     if (!user) return;
     setSaveStatus('saving');
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
+      await setDoc(doc(db, 'users', user.uid), {
         username: username,
         discordId: discordId,
         bio: bio
-      });
+      }, { merge: true });
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error) {

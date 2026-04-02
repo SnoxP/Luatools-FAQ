@@ -2,6 +2,7 @@ export interface FaqItem {
   id: string;
   question: string;
   answer: string;
+  author?: string;
 }
 
 export interface FaqCategory {

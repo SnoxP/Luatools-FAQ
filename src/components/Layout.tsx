@@ -39,31 +39,26 @@ export default function Layout() {
         <div className="w-6"></div> {/* Spacer for centering */}
       </div>
 
-      {/* Sidebar */}
+      {/* Mobile Overlay */}
       <AnimatePresence>
-        {(isMobileMenuOpen || window.innerWidth >= 768) && (
-          <>
-            {/* Mobile Overlay */}
-            {isMobileMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="md:hidden fixed inset-0 bg-black/50 z-40"
-              />
-            )}
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="md:hidden fixed inset-0 bg-black/50 z-40"
+          />
+        )}
+      </AnimatePresence>
 
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'tween', duration: 0.3 }}
-              className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-[#171717] flex flex-col transition-transform duration-300 ease-in-out ${
-                isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-              }`}
-            >
-              <div className="p-3">
+      {/* Sidebar */}
+      <div
+        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-[#171717] flex flex-col transition-transform duration-300 ease-in-out ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div className="p-3">
                 <Link
                   to="/"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -108,10 +103,7 @@ export default function Layout() {
                   Discord
                 </a>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            </div>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-full relative w-full md:w-[calc(100%-16rem)] pt-12 md:pt-0">
