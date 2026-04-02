@@ -4,7 +4,6 @@ import { useFaq } from '../context/FaqContext';
 import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon, AlertCircle } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
-import { GoogleGenAI } from '@google/genai';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -89,16 +88,21 @@ export default function AdminPage() {
     setBotStatus('checking');
     setBotErrorReason('');
     try {
-      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('Chave da API (VITE_GEMINI_API_KEY) não encontrada nas variáveis de ambiente.');
-      }
-      const ai = new GoogleGenAI({ apiKey });
-      await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: 'ping',
-        config: { maxOutputTokens: 1 }
+      const response = await fetch('/api/bot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'ping' }]
+        })
       });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erro ao conectar com o bot');
+      }
+      
       setBotStatus('online');
     } catch (err: any) {
       setBotStatus('error');

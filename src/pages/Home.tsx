@@ -1,25 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Bot, Loader2, AlertCircle, Image as ImageIcon, X } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { useFaq } from '../context/FaqContext';
 import DiscordMarkdown from '../components/DiscordMarkdown';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-
-let aiInstance: GoogleGenAI | null = null;
-
-const getAI = () => {
-  if (!aiInstance) {
-    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY is missing. Chatbot will not work.");
-      return null;
-    }
-    aiInstance = new GoogleGenAI({ apiKey });
-  }
-  return aiInstance;
-};
 
 interface Message {
   id: string;
@@ -88,17 +73,6 @@ export default function Home() {
       5. Seja claro, direto e use emojis para deixar a conversa mais leve.
       6. Quando responder a uma dúvida do FAQ, sugira 1 ou 2 perguntas relacionadas no final.
       7. ANÁLISE DE IMAGENS: Se o usuário enviar uma imagem, aja como um desenvolvedor sênior investigando um bug. Analise a imagem detalhadamente, pense passo a passo sobre o que está visível (erros de sintaxe, logs, interface), identifique a causa raiz e forneça uma explicação técnica aprofundada com possíveis soluções (mesmo que não estejam no FAQ).`;
-
-      const ai = getAI();
-      if (!ai) {
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          role: 'model',
-          text: '⚠️ Erro de Configuração: A chave da API do Gemini não foi encontrada.'
-        }]);
-        setIsLoading(false);
-        return;
-      }
 
       try {
         const today = new Date().toLocaleDateString('pt-BR');
@@ -181,36 +155,51 @@ export default function Home() {
 
       const historyMessages = currentMessages.filter(m => m.id !== 'welcome');
       
-      const contents = historyMessages.map(m => {
-        const parts: any[] = [];
-        if (m.text) {
-          parts.push({ text: m.text });
-        }
-        if (m.image) {
-          parts.push({ inlineData: { data: m.image.data, mimeType: m.image.mimeType } });
-        }
-        if (parts.length === 1 && m.image) {
-           parts.unshift({ text: "Analise esta imagem." });
-        }
-        return {
-          role: m.role,
-          parts
-        };
+      const openAiMessages = [
+        { role: 'system', content: systemInstruction },
+        ...historyMessages.map(m => {
+          const role = m.role === 'model' ? 'assistant' : 'user';
+          
+          if (m.image) {
+            return {
+              role,
+              content: [
+                { type: 'text', text: m.text || "Analise esta imagem." },
+                { 
+                  type: 'image_url', 
+                  image_url: { url: `data:${m.image.mimeType};base64,${m.image.data}` } 
+                }
+              ]
+            };
+          }
+          
+          return {
+            role,
+            content: m.text
+          };
+        })
+      ];
+
+      const response = await fetch('/api/bot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: openAiMessages
+        })
       });
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
-        contents,
-        config: {
-          systemInstruction,
-          temperature: 0.4,
-        }
-      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao comunicar com a API');
+      }
       
       const newModelMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'model',
-        text: response.text || 'Ocorreu um erro ao processar a resposta.'
+        text: data.choices?.[0]?.message?.content || 'Ocorreu um erro ao processar a resposta.'
       };
 
       setMessages(prev => [...prev, newModelMsg]);
