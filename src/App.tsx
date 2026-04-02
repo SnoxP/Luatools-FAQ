@@ -10,6 +10,7 @@ import FaqPage from './pages/FaqPage';
 import AdminPage from './pages/AdminPage';
 import FixPage from './pages/FixPage';
 import ProfilePage from './pages/ProfilePage';
+import DonatePage from './pages/DonatePage';
 import { FaqProvider } from './context/FaqContext';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="fix" element={<FixPage />} />
             <Route path="painel-admin" element={<AdminPage />} />
             <Route path="perfil" element={<ProfilePage />} />
+            <Route path="donate" element={<DonatePage />} />
           </Route>
         </Routes>
       </Router>

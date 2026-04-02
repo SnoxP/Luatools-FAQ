@@ -87,37 +87,20 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(currentUser);
       
       if (currentUser) {
-        // Check if user is admin
-        if (currentUser.email === 'pedronobreneto27@gmail.com' || currentUser.email === 'pedronobreneto@gmail.com') {
-          setIsAdmin(true);
-          // Ensure admin document exists
-          try {
-            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-            if (!userDoc.exists()) {
-              await setDoc(doc(db, 'users', currentUser.uid), {
-                email: currentUser.email,
-                role: 'admin'
-              });
-            }
-          } catch (e) {
-            console.error("Error creating admin doc", e);
-          }
-          setIsAuthReady(true);
-        } else {
-          try {
-            unsubscribeUser = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
-              setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
-              setIsAuthReady(true);
-            }, (error) => {
-              console.error("Error checking admin status:", error);
-              setIsAdmin(false);
-              setIsAuthReady(true);
-            });
-          } catch (error) {
+        // Check if user is admin based on Firestore role
+        try {
+          unsubscribeUser = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
+            setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
+            setIsAuthReady(true);
+          }, (error) => {
             console.error("Error checking admin status:", error);
             setIsAdmin(false);
             setIsAuthReady(true);
-          }
+          });
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+          setIsAdmin(false);
+          setIsAuthReady(true);
         }
       } else {
         setIsAdmin(false);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Menu, X, MessageSquare, ShieldAlert, Home, Settings, Wrench, User as UserIcon, Plus } from 'lucide-react';
+import { Menu, X, MessageSquare, ShieldAlert, Home, Settings, Wrench, User as UserIcon, Plus, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
 
@@ -13,6 +13,7 @@ export default function Layout() {
     { name: 'Início', path: '/', icon: <Home className="w-5 h-5 mr-3" /> },
     { name: 'FAQ', path: '/faq', icon: <MessageSquare className="w-5 h-5 mr-3" /> },
     { name: 'Fix', path: '/fix', icon: <Wrench className="w-5 h-5 mr-3" /> },
+    { name: 'Doar', path: '/donate', icon: <Heart className="w-5 h-5 mr-3" /> },
   ];
 
   if (user) {
