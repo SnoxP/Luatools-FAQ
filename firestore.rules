@@ -68,12 +68,15 @@ service cloud.firestore {
     }
 
     function isValidUser() {
-      return hasOnlyAllowedFields(['email', 'role', 'isOnline', 'lastActive']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'isOnline', 'lastActive', 'username', 'discordId', 'bio']) &&
              hasRequiredFields(['email', 'role']) &&
              isValidEmail(request.resource.data.email) &&
              request.resource.data.role in ['admin', 'user'] &&
              (!('isOnline' in request.resource.data) || request.resource.data.isOnline is bool) &&
-             (!('lastActive' in request.resource.data) || request.resource.data.lastActive is number);
+             (!('lastActive' in request.resource.data) || request.resource.data.lastActive is number) &&
+             (!('username' in request.resource.data) || request.resource.data.username is string) &&
+             (!('discordId' in request.resource.data) || request.resource.data.discordId is string) &&
+             (!('bio' in request.resource.data) || request.resource.data.bio is string);
     }
 
     function isValidChatLog() {

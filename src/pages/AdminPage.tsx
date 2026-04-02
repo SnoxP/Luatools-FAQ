@@ -193,65 +193,68 @@ export default function AdminPage() {
   const handleFileUpload = async (file: File) => {
     if (!file) return;
 
+    if (file.size > 200 * 1024 * 1024) {
+      alert("O arquivo é muito grande. O limite é de 200MB.");
+      return;
+    }
+
     // Set title based on file name (without extension)
     const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
     setFixData(prev => ({ ...prev, title: fileNameWithoutExt }));
     setUploadProgress(0);
 
     try {
-      const { storage, ref, uploadBytesResumable, getDownloadURL } = await import('../firebase');
-      const storageRef = ref(storage, `fixes/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      // Usando a API do Catbox.moe para hospedar o arquivo gratuitamente (limite 200MB)
+      const formData = new FormData();
+      formData.append('reqtype', 'fileupload');
+      formData.append('fileToUpload', file);
 
-      // Timeout to detect hanging uploads (e.g., Storage not enabled in console)
-      const timeoutId = setTimeout(() => {
-        setUploadProgress(currentProgress => {
-          if (currentProgress !== null && currentProgress < 100) {
-            uploadTask.cancel();
-            alert("O upload está demorando muito e parece ter travado.\n\nIsso geralmente acontece quando o 'Firebase Storage' não está ativado no seu projeto Firebase.\n\nPara resolver:\n1. Acesse o Console do Firebase\n2. Vá em 'Storage' no menu lateral\n3. Clique em 'Começar' (Get Started)\n4. Aceite as regras padrão e conclua a configuração.");
-            return null;
-          }
-          return currentProgress;
+      // Simular progresso já que fetch não suporta onProgress nativamente de forma simples
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev === null) return null;
+          const next = prev + 5;
+          return next > 90 ? 90 : next;
         });
-      }, 15000); // 15 seconds timeout
+      }, 500);
 
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        },
-        (error) => {
-          clearTimeout(timeoutId);
-          console.error("Upload failed", error);
-          setUploadProgress(null);
-          alert(`Erro ao fazer upload do arquivo: ${error.message}\n\nVerifique se o Firebase Storage está ativado e se as regras permitem upload.`);
-        },
-        async () => {
-          clearTimeout(timeoutId);
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          setFixData(prev => ({ ...prev, downloadUrl: downloadURL }));
-          setUploadProgress(null);
-          
-          // Auto-save the new URL to prevent losing it if user forgets to click save
-          try {
-            const { setDoc } = await import('../firebase');
-            const now = new Date().toLocaleDateString('pt-BR');
-            await setDoc(doc(db, 'content', 'game_fix'), {
-              title: fileNameWithoutExt,
-              downloadUrl: downloadURL,
-              updatedAt: now
-            }, { merge: true });
-            alert("Arquivo enviado e link salvo com sucesso no banco de dados!");
-          } catch (e) {
-            console.error("Error auto-saving fix data:", e);
-          }
-        }
-      );
-    } catch (err) {
-      console.error("Error initializing upload", err);
+      const response = await fetch('https://catbox.moe/user/api.php', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+
+      if (!response.ok) {
+        throw new Error('Falha no upload para o servidor.');
+      }
+
+      const downloadURL = await response.text();
+      
+      setFixData(prev => ({ ...prev, downloadUrl: downloadURL }));
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        setUploadProgress(null);
+      }, 1000);
+      
+      // Auto-save the new URL
+      try {
+        const { setDoc } = await import('../firebase');
+        const now = new Date().toLocaleDateString('pt-BR');
+        await setDoc(doc(db, 'content', 'game_fix'), {
+          title: fileNameWithoutExt,
+          downloadUrl: downloadURL,
+          updatedAt: now
+        }, { merge: true });
+        alert("Arquivo enviado e link salvo com sucesso!");
+      } catch (e) {
+        console.error("Error auto-saving fix data:", e);
+      }
+    } catch (err: any) {
+      console.error("Error uploading file", err);
       setUploadProgress(null);
-      alert("Erro ao iniciar o upload. Verifique a configuração do Firebase.");
+      alert(`Erro ao fazer upload do arquivo: ${err.message || 'Tente novamente mais tarde.'}`);
     }
   };
 
@@ -855,7 +858,7 @@ export default function AdminPage() {
                       Hospedagem de Arquivos
                     </h3>
                     <p className="text-blue-300/80 text-sm leading-relaxed">
-                      Você pode fazer o upload do arquivo diretamente aqui. Ele será salvo no <strong>Firebase Storage</strong> (gratuito).
+                      Você pode fazer o upload do arquivo diretamente aqui. Ele será hospedado anonimamente e de forma gratuita via <strong>Catbox.moe</strong> (limite de 200MB).
                       Arraste o arquivo para a área abaixo ou clique para selecionar.
                     </p>
                   </div>
