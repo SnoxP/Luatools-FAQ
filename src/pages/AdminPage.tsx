@@ -98,9 +98,17 @@ export default function AdminPage() {
         })
       });
       
+      let data;
+      const responseText = await response.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Resposta não-JSON do servidor:", responseText);
+        throw new Error(`O servidor não retornou JSON (HTTP ${response.status}). Verifique os logs no Vercel.`);
+      }
+      
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao conectar com o bot');
+        throw new Error(data.error || `Erro HTTP ${response.status}`);
       }
       
       setBotStatus('online');

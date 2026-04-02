@@ -190,10 +190,17 @@ export default function Home() {
         })
       });
 
-      const data = await response.json();
+      let data;
+      const responseText = await response.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Resposta não-JSON do servidor:", responseText);
+        throw new Error(`O servidor não retornou JSON (HTTP ${response.status}). Se estiver no Vercel, verifique os logs da aba Functions.`);
+      }
       
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao comunicar com a API');
+        throw new Error(data.error || `Erro HTTP ${response.status}`);
       }
       
       const newModelMsg: Message = {
@@ -203,12 +210,12 @@ export default function Home() {
       };
 
       setMessages(prev => [...prev, newModelMsg]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'model',
-        text: 'Desculpe, ocorreu um erro ao conectar com a IA. Por favor, tente novamente mais tarde.'
+        text: `⚠️ Erro: ${error.message || 'Desculpe, ocorreu um erro ao conectar com a IA.'}`
       }]);
     } finally {
       setIsLoading(false);
