@@ -204,12 +204,25 @@ export default function AdminPage() {
     setUploadProgress(0);
 
     try {
-      // Usando a API do Catbox.moe para hospedar o arquivo gratuitamente (limite 200MB)
-      const formData = new FormData();
-      formData.append('reqtype', 'fileupload');
-      formData.append('fileToUpload', file);
+      // Usando a API do Gofile.io para hospedar o arquivo gratuitamente (suporta CORS)
+      
+      // 1. Obter o melhor servidor disponível
+      const serverResponse = await fetch('https://api.gofile.io/servers', {
+        method: 'GET',
+      });
+      const serverData = await serverResponse.json();
+      
+      if (serverData.status !== 'ok' || !serverData.data?.servers?.length) {
+        throw new Error('Não foi possível conectar aos servidores de upload.');
+      }
+      
+      const server = serverData.data.servers[0].name;
 
-      // Simular progresso já que fetch não suporta onProgress nativamente de forma simples
+      // 2. Fazer o upload para o servidor selecionado
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Simular progresso
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev === null) return null;
@@ -218,18 +231,20 @@ export default function AdminPage() {
         });
       }, 500);
 
-      const response = await fetch('https://catbox.moe/user/api.php', {
+      const uploadResponse = await fetch(`https://${server}.gofile.io/contents/uploadfile`, {
         method: 'POST',
         body: formData,
       });
 
       clearInterval(progressInterval);
 
-      if (!response.ok) {
+      const uploadData = await uploadResponse.json();
+
+      if (uploadData.status !== 'ok') {
         throw new Error('Falha no upload para o servidor.');
       }
 
-      const downloadURL = await response.text();
+      const downloadURL = uploadData.data.downloadPage;
       
       setFixData(prev => ({ ...prev, downloadUrl: downloadURL }));
       setUploadProgress(100);
@@ -858,7 +873,7 @@ export default function AdminPage() {
                       Hospedagem de Arquivos
                     </h3>
                     <p className="text-blue-300/80 text-sm leading-relaxed">
-                      Você pode fazer o upload do arquivo diretamente aqui. Ele será hospedado anonimamente e de forma gratuita via <strong>Catbox.moe</strong> (limite de 200MB).
+                      Você pode fazer o upload do arquivo diretamente aqui. Ele será hospedado anonimamente e de forma gratuita via <strong>Gofile.io</strong> (sem limite de tamanho, suporta CORS).
                       Arraste o arquivo para a área abaixo ou clique para selecionar.
                     </p>
                   </div>
