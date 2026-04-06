@@ -12,22 +12,28 @@ import FixPage from './pages/FixPage';
 import ProfilePage from './pages/ProfilePage';
 import DonatePage from './pages/DonatePage';
 import { FaqProvider } from './context/FaqContext';
+import { SettingsProvider } from './context/SettingsContext';
+import { ChatProvider } from './context/ChatContext';
 
 export default function App() {
   return (
-    <FaqProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route path="faq" element={<FaqPage />} />
-            <Route path="fix" element={<FixPage />} />
-            <Route path="painel-admin" element={<AdminPage />} />
-            <Route path="perfil" element={<ProfilePage />} />
-            <Route path="donate" element={<DonatePage />} />
-          </Route>
-        </Routes>
-      </Router>
-    </FaqProvider>
+    <SettingsProvider>
+      <FaqProvider>
+        <ChatProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Home />} />
+                <Route path="faq" element={<FaqPage />} />
+                <Route path="fix" element={<FixPage />} />
+                <Route path="painel-admin" element={<AdminPage />} />
+                <Route path="perfil" element={<ProfilePage />} />
+                <Route path="donate" element={<DonatePage />} />
+              </Route>
+            </Routes>
+          </Router>
+        </ChatProvider>
+      </FaqProvider>
+    </SettingsProvider>
   );
 }

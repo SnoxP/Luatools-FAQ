@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Send, Bot, Loader2, AlertCircle, Image as ImageIcon, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Bot, Loader2, AlertCircle, Image as ImageIcon, X, Plus, Menu, MessageSquare, Trash2, PanelLeft } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { useFaq } from '../context/FaqContext';
+import { useSettings } from '../context/SettingsContext';
 import DiscordMarkdown from '../components/DiscordMarkdown';
 import { doc, getDoc, updateDoc, setDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -22,24 +23,15 @@ const getAI = () => {
   return aiInstance;
 };
 
-interface Message {
-  id: string;
-  role: 'user' | 'model';
-  text: string;
-  image?: { data: string; mimeType: string };
-}
+import { useChat, Message } from '../context/ChatContext';
 
 export default function Home() {
   const { faqData, user } = useFaq();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'model',
-      text: 'Olá! 👋 Sou o assistente virtual do LuaTools. Como posso te ajudar hoje? (Lembrando que minhas respostas são baseadas no nosso FAQ oficial, ok?)'
-    }
-  ]);
+  const { t } = useSettings();
+  const { currentSessionId, messages, setMessages, saveSessionToStorage, isSidebarOpen, setIsSidebarOpen } = useChat();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isWhyLoginOpen, setIsWhyLoginOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
@@ -65,7 +57,7 @@ export default function Home() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'model',
-        text: '⚠️ Você precisa fazer login para usar o chat. Acesse a aba "Login" no menu.'
+        text: `⚠️ ${t('home.loginRequired')}`
       }]);
       return;
     }
@@ -84,6 +76,12 @@ export default function Home() {
     setMessages(currentMessages);
     setIsLoading(true);
     setSelectedImage(null);
+
+    const isFirstUserMessage = messages.length === 1 && messages[0].id === 'welcome';
+    const sessionTitle = isFirstUserMessage ? (userText.slice(0, 30) + (userText.length > 30 ? '...' : '')) : undefined;
+    if (currentSessionId) {
+      saveSessionToStorage(currentSessionId, currentMessages, sessionTitle);
+    }
 
     try {
       // Save chat log to Firestore
@@ -251,6 +249,13 @@ export default function Home() {
           msg.id === newModelMsgId ? { ...msg, text: 'Ocorreu um erro ao processar a resposta.' } : msg
         ));
       }
+
+      setMessages(prev => {
+        if (currentSessionId) {
+          saveSessionToStorage(currentSessionId, prev);
+        }
+        return prev;
+      });
     } catch (error: any) {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, {
@@ -303,32 +308,33 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#212121]">
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto w-full">
-        <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="flex h-full bg-zinc-50 dark:bg-[#212121] transition-colors duration-200 overflow-hidden">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-full relative min-w-0">
+        <div className="flex-1 overflow-y-auto w-full">
+          <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
           {messages.map((msg) => (
             <div
               key={msg.id}
               className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'model' && (
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0 mt-1">
-                  <Bot className="w-5 h-5 text-zinc-200" />
+                <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center shrink-0 mt-1">
+                  <Bot className="w-5 h-5 text-zinc-700 dark:text-zinc-200" />
                 </div>
               )}
               <div
                 className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-3.5 ${
                   msg.role === 'user'
-                    ? 'bg-[#2f2f2f] text-zinc-100'
-                    : 'text-zinc-200'
+                    ? 'bg-white dark:bg-[#2f2f2f] text-zinc-900 dark:text-zinc-100 shadow-sm border border-black/5 dark:border-transparent'
+                    : 'text-zinc-800 dark:text-zinc-200'
                 }`}
               >
                 {msg.image && (
                   <img 
                     src={`data:${msg.image.mimeType};base64,${msg.image.data}`} 
                     alt="Uploaded" 
-                    className="max-w-full rounded-xl mb-3 border border-white/10"
+                    className="max-w-full rounded-xl mb-3 border border-black/10 dark:border-white/10"
                     referrerPolicy="no-referrer"
                   />
                 )}
@@ -340,10 +346,10 @@ export default function Home() {
           ))}
           {isLoading && (
             <div className="flex gap-4 justify-start">
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0 mt-1">
-                <Bot className="w-5 h-5 text-zinc-200" />
+              <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center shrink-0 mt-1">
+                <Bot className="w-5 h-5 text-zinc-700 dark:text-zinc-200" />
               </div>
-              <div className="text-zinc-400 px-5 py-3.5 flex items-center gap-2">
+              <div className="text-zinc-500 dark:text-zinc-400 px-5 py-3.5 flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-[15px]">Pensando...</span>
               </div>
@@ -356,27 +362,35 @@ export default function Home() {
       {/* Input Area */}
       <div className="w-full max-w-3xl mx-auto px-4 pb-6 pt-2">
         {!user ? (
-          <div className="bg-[#2f2f2f] rounded-3xl border border-white/10 p-6 text-center shadow-lg">
-            <p className="text-zinc-300 mb-4">Você precisa estar logado para conversar com o bot.</p>
-            <Link to="/painel-admin" className="inline-block px-6 py-2 bg-white text-black font-medium rounded-full hover:bg-zinc-200 transition-colors">
-              Fazer Login ou Criar Conta
-            </Link>
+          <div className="bg-white dark:bg-[#2f2f2f] rounded-3xl border border-black/10 dark:border-white/10 p-6 text-center shadow-lg transition-colors duration-200">
+            <p className="text-zinc-600 dark:text-zinc-300 mb-4">{t('home.loginRequired')}</p>
+            <div className="flex flex-col items-center gap-3">
+              <Link to="/painel-admin" className="inline-block px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black font-medium rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors">
+                {t('home.loginButton')}
+              </Link>
+              <button 
+                onClick={() => setIsWhyLoginOpen(true)}
+                className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white underline transition-colors"
+              >
+                Por que preciso logar?
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="relative bg-[#2f2f2f] rounded-3xl border border-white/10 shadow-lg focus-within:border-white/20 transition-colors">
+          <div className="relative bg-white dark:bg-[#2f2f2f] rounded-3xl border border-black/10 dark:border-white/10 shadow-lg focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors duration-200">
             {selectedImage && (
               <div className="absolute bottom-full left-0 mb-3 ml-4">
                 <div className="relative inline-block">
                   <img 
                     src={`data:${selectedImage.mimeType};base64,${selectedImage.data}`} 
                     alt="Preview" 
-                    className="h-16 rounded-lg border border-white/10 object-cover"
+                    className="h-16 rounded-lg border border-black/10 dark:border-white/10 object-cover"
                     referrerPolicy="no-referrer"
                   />
                   <button
                     type="button"
                     onClick={() => setSelectedImage(null)}
-                    className="absolute -top-2 -right-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-full p-1 border border-zinc-700 transition-colors"
+                    className="absolute -top-2 -right-2 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-full p-1 border border-black/10 dark:border-zinc-700 transition-colors"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -394,7 +408,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="p-3 text-zinc-400 hover:text-zinc-200 transition-colors rounded-full hover:bg-white/5 shrink-0"
+                className="p-3 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/5 shrink-0"
               >
                 <ImageIcon className="w-5 h-5" />
               </button>
@@ -403,16 +417,16 @@ export default function Home() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                placeholder={selectedImage ? "Imagem selecionada..." : "Pergunte algo ao LuaTools..."}
+                placeholder={selectedImage ? "Imagem selecionada..." : t('home.placeholder')}
                 disabled={isLoading}
                 rows={1}
-                className="w-full bg-transparent border-none resize-none text-[15px] text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-0 py-3 max-h-32 overflow-y-auto disabled:opacity-50"
+                className="w-full bg-transparent border-none resize-none text-[15px] text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-0 py-3 max-h-32 overflow-y-auto disabled:opacity-50"
                 style={{ minHeight: '44px' }}
               />
               <button
                 type="submit"
                 disabled={(!input.trim() && !selectedImage) || isLoading}
-                className="p-3 rounded-full bg-white text-black hover:bg-zinc-200 disabled:opacity-50 disabled:bg-white/10 disabled:text-zinc-500 transition-colors shrink-0 mb-0.5 mr-0.5"
+                className="p-3 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:bg-black/10 dark:disabled:bg-white/10 disabled:text-zinc-400 dark:disabled:text-zinc-500 transition-colors shrink-0 mb-0.5 mr-0.5"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -421,11 +435,62 @@ export default function Home() {
         )}
         <div className="text-center mt-3">
           <p className="text-xs text-zinc-500">
-            O assistente pode cometer erros. Considere verificar informações importantes no{' '}
-            <a href="https://ptb.discord.com/channels/1408201417834893385/1464812261611933839" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-400">Discord</a>.
+            {t('home.footer')}{' '}
+            <a href="https://ptb.discord.com/channels/1408201417834893385/1464812261611933839" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-400">Discord</a>.
           </p>
         </div>
       </div>
+      </div>
+
+      {/* Why Login Modal */}
+      <AnimatePresence>
+        {isWhyLoginOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsWhyLoginOpen(false)}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-white dark:bg-[#212121] rounded-2xl shadow-xl overflow-hidden border border-black/10 dark:border-white/10"
+            >
+              <div className="p-6 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">Por que preciso logar?</h3>
+                <button
+                  onClick={() => setIsWhyLoginOpen(false)}
+                  className="p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4 text-zinc-600 dark:text-zinc-300 leading-relaxed">
+                <p>
+                  O login é necessário para garantir o funcionamento adequado da plataforma. Ao acessar sua conta, o sistema consegue oferecer respostas mais precisas, mantendo o contexto das interações e evitando repetições ou informações genéricas.
+                </p>
+                <p>
+                  Além disso, a autenticação contribui para a segurança do serviço, prevenindo usos indevidos, como spam e abusos, e assegurando uma experiência mais estável para todos os usuários.
+                </p>
+                <p>
+                  Ressaltamos que não realizamos qualquer uso indevido das informações da sua conta. Os dados fornecidos são utilizados exclusivamente para permitir o acesso e o funcionamento do sistema, não sendo compartilhados, vendidos ou utilizados para outros fins.
+                </p>
+              </div>
+              <div className="p-6 border-t border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-[#171717] flex justify-end">
+                <button
+                  onClick={() => setIsWhyLoginOpen(false)}
+                  className="px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black font-medium rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+                >
+                  Entendi
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

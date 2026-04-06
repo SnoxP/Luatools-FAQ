@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
+import { useSettings } from '../context/SettingsContext';
 import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon, AlertCircle, Upload } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
@@ -11,6 +12,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 
 export default function AdminPage() {
   const { faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, signup, logout } = useFaq();
+  const { t, language } = useSettings();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -503,50 +505,50 @@ export default function AdminPage() {
 
   if (!isAuthReady) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center bg-[#212121]">
-        <Loader2 className="w-8 h-8 text-zinc-500 animate-spin" />
+      <div className="min-h-[80vh] flex items-center justify-center bg-zinc-50 dark:bg-[#212121] transition-colors duration-200">
+        <Loader2 className="w-8 h-8 text-zinc-400 dark:text-zinc-500 animate-spin" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-full flex items-center justify-center px-4 bg-[#212121]">
-        <div className="max-w-md w-full bg-[#2f2f2f] border border-white/10 rounded-2xl p-8 shadow-sm text-center">
+      <div className="min-h-full flex items-center justify-center px-4 bg-zinc-50 dark:bg-[#212121] transition-colors duration-200">
+        <div className="max-w-md w-full bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-8 shadow-sm text-center transition-colors duration-200">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-white mb-2">{isLoginMode ? 'Acesso Restrito' : 'Criar Conta'}</h2>
-            <p className="text-zinc-400 text-sm">Área exclusiva para administradores do LuaTools.</p>
-            <p className="text-zinc-300 text-sm mt-2">Caso seja cargo Helper ou +, contate o SnoxP718 para adicioná-lo ao site.</p>
+            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-2">{isLoginMode ? t('admin.loginTitle') : t('admin.signupTitle')}</h2>
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.loginSubtitle')}</p>
+            <p className="text-zinc-500 dark:text-zinc-300 text-sm mt-2">{t('admin.loginHelper')}</p>
           </div>
           
           <form onSubmit={handleAuth} className="space-y-4">
             <div>
               <input
                 type="email"
-                placeholder="E-mail"
+                placeholder={t('admin.email')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
+                className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
                 required
               />
             </div>
             <div>
               <input
                 type="password"
-                placeholder="Senha"
+                placeholder={t('admin.password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
+                className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
                 required
                 minLength={6}
               />
             </div>
-            {loginError && <p className="text-red-400 text-sm text-left">{loginError}</p>}
+            {loginError && <p className="text-red-500 dark:text-red-400 text-sm text-left">{loginError}</p>}
             <button
               type="submit"
-              className="w-full bg-white text-black font-medium rounded-xl px-4 py-3 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-zinc-900 dark:bg-white text-white dark:text-black font-medium rounded-xl px-4 py-3 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
             >
-              {isLoginMode ? 'Entrar' : 'Criar Conta'}
+              {isLoginMode ? t('admin.loginBtn') : t('admin.signupBtn')}
             </button>
           </form>
           
@@ -556,9 +558,9 @@ export default function AdminPage() {
                 setIsLoginMode(!isLoginMode);
                 setLoginError('');
               }}
-              className="text-zinc-400 hover:text-white text-sm transition-colors"
+              className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-sm transition-colors"
             >
-              {isLoginMode ? 'Não tem uma conta? Criar agora' : 'Já tem uma conta? Entrar'}
+              {isLoginMode ? t('admin.noAccount') : t('admin.hasAccount')}
             </button>
           </div>
         </div>
@@ -568,25 +570,25 @@ export default function AdminPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-full flex items-center justify-center px-4 bg-[#212121]">
-        <div className="max-w-md w-full bg-[#2f2f2f] border border-white/10 rounded-2xl p-8 shadow-sm text-center">
-          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-white mb-2">Acesso Negado</h2>
-          <p className="text-zinc-400 text-sm mb-6">
-            Sua conta ({user.email}) não tem permissão de administrador.
+      <div className="min-h-full flex items-center justify-center px-4 bg-zinc-50 dark:bg-[#212121] transition-colors duration-200">
+        <div className="max-w-md w-full bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-8 shadow-sm text-center transition-colors duration-200">
+          <AlertTriangle className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-2">{t('admin.accessDenied')}</h2>
+          <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-6">
+            {t('admin.accessDeniedMsg').replace('{email}', user.email || '')}
           </p>
           <div className="space-y-3">
             <button
               onClick={() => window.location.href = '/perfil'}
-              className="w-full bg-white text-black font-medium rounded-xl px-4 py-3 hover:bg-zinc-200 transition-colors"
+              className="w-full bg-zinc-900 dark:bg-white text-white dark:text-black font-medium rounded-xl px-4 py-3 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
             >
-              Ir para o Meu Perfil
+              {t('admin.goToProfile')}
             </button>
             <button
               onClick={logout}
-              className="w-full bg-[#212121] text-white font-medium rounded-xl px-4 py-3 hover:bg-white/5 border border-white/10 transition-colors"
+              className="w-full bg-zinc-50 dark:bg-[#212121] text-zinc-900 dark:text-white font-medium rounded-xl px-4 py-3 hover:bg-zinc-100 dark:hover:bg-white/5 border border-black/10 dark:border-white/10 transition-colors"
             >
-              Sair e tentar outra conta
+              {t('admin.logoutTryOther')}
             </button>
           </div>
         </div>
@@ -595,25 +597,25 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-full bg-[#212121] text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-full bg-zinc-50 dark:bg-[#212121] text-zinc-900 dark:text-zinc-100 py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-white mb-2">Painel de Administração</h1>
-            <p className="text-zinc-400 text-sm">Gerencie o conteúdo e os usuários do sistema.</p>
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-2">{t('admin.title')}</h1>
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.subtitle')}</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => navigate('/perfil')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2f2f2f] text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border border-white/10"
-              title="Meu Perfil"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-[#2f2f2f] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors border border-black/10 dark:border-white/10"
+              title={t('nav.profile')}
             >
               <UserIcon className="w-4 h-4" />
             </button>
             <button
               onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2f2f2f] text-zinc-300 hover:text-white hover:bg-white/5 transition-colors border border-white/10"
-              title="Sair"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-[#2f2f2f] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors border border-black/10 dark:border-white/10"
+              title={t('nav.logout')}
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -625,50 +627,50 @@ export default function AdminPage() {
                   className={`flex items-center gap-2 px-6 py-2 rounded-xl font-medium transition-colors ${
                     saveStatus === 'success' ? 'bg-emerald-600 text-white' :
                     saveStatus === 'error' ? 'bg-red-600 text-white' :
-                    'bg-white text-black hover:bg-zinc-200'
+                    'bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200'
                   }`}
                 >
                   {saveStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
                    saveStatus === 'error' ? <AlertTriangle className="w-4 h-4" /> :
                    <Save className="w-4 h-4" />}
-                  {saveStatus === 'saving' ? 'Salvando...' :
-                   saveStatus === 'success' ? 'Salvo!' :
-                   saveStatus === 'error' ? 'Erro ao Salvar' :
-                   'Salvar Alterações'}
+                  {saveStatus === 'saving' ? t('admin.saving') :
+                   saveStatus === 'success' ? t('admin.success') :
+                   saveStatus === 'error' ? t('admin.error') :
+                   t('admin.save')}
                 </button>
               </>
             )}
           </div>
         </div>
 
-        <div className="flex border-b border-white/10 mb-8 overflow-x-auto">
+        <div className="flex border-b border-black/10 dark:border-white/10 mb-8 overflow-x-auto hide-scrollbar">
           <button
             onClick={() => setActiveTab('faq')}
-            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'faq' ? 'border-white text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'faq' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
           >
             <MessageSquare className="w-4 h-4" />
-            Gerenciar FAQ
+            {t('admin.tabFaq')}
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-white text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
           >
             <Users className="w-4 h-4" />
-            Usuários
+            {t('admin.tabUsers')}
           </button>
           <button
             onClick={() => setActiveTab('fix')}
-            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'fix' ? 'border-white text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'fix' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
           >
             <Wrench className="w-4 h-4" />
-            Gerenciar Fix
+            {t('admin.tabFix')}
           </button>
           <button
             onClick={() => setActiveTab('bot')}
-            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'bot' ? 'border-white text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'bot' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
           >
             <Bot className="w-4 h-4" />
-            Configurações do Bot
+            {t('admin.tabBot')}
           </button>
         </div>
 
@@ -676,26 +678,26 @@ export default function AdminPage() {
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="space-y-6">
               {localData.map((category) => (
-              <div key={category.id} className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
+              <div key={category.id} className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
                 {/* Category Header */}
-                <div className="bg-[#2f2f2f] px-4 py-4 border-b border-white/10 flex items-center justify-between">
+                <div className="bg-zinc-50 dark:bg-[#2f2f2f] px-4 py-4 border-b border-black/10 dark:border-white/10 flex items-center justify-between transition-colors duration-200">
                   <div className="flex items-center gap-3 flex-1">
-                    <button onClick={() => toggleCategory(category.id)} className="text-zinc-400 hover:text-white transition-colors">
+                    <button onClick={() => toggleCategory(category.id)} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
                       {expandedCategories.has(category.id) ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </button>
                     <input
                       type="text"
                       value={category.title}
                       onChange={(e) => updateCategoryTitle(category.id, e.target.value)}
-                      className="bg-transparent text-lg font-semibold text-white focus:outline-none focus:border-b border-white/20 w-full max-w-md px-1"
-                      placeholder="Nome da Categoria"
+                      className="bg-transparent text-lg font-semibold text-zinc-900 dark:text-white focus:outline-none focus:border-b border-black/20 dark:border-white/20 w-full max-w-md px-1 transition-colors"
+                      placeholder={t('admin.categoryTitle')}
                     />
                   </div>
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => deleteCategory(category.id)}
-                      className="text-zinc-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-white/5"
-                      title="Excluir Categoria"
+                      className="text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5"
+                      title={t('admin.deleteCategory')}
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -715,12 +717,12 @@ export default function AdminPage() {
                           <Draggable key={item.id} draggableId={item.id} index={index}>
                             {(provided) => (
                               <div 
-                                className="bg-[#212121] border border-white/5 rounded-xl p-4 flex gap-4"
+                                className="bg-zinc-50 dark:bg-[#212121] border border-black/5 dark:border-white/5 rounded-xl p-4 flex gap-4 transition-colors duration-200"
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                               >
                                 <div 
-                                  className="mt-2 text-zinc-600 cursor-grab"
+                                  className="mt-2 text-zinc-400 dark:text-zinc-600 cursor-grab"
                                   {...provided.dragHandleProps}
                                 >
                                   <GripVertical className="w-5 h-5" />
@@ -730,14 +732,14 @@ export default function AdminPage() {
                                     type="text"
                                     value={item.question}
                                     onChange={(e) => updateItem(category.id, item.id, 'question', e.target.value)}
-                                    className="w-full bg-[#2f2f2f] border border-white/10 rounded-lg px-3 py-2 text-white font-medium focus:outline-none focus:border-white/20 transition-colors"
-                                    placeholder="Pergunta..."
+                                    className="w-full bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-lg px-3 py-2 text-zinc-900 dark:text-white font-medium focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                                    placeholder={t('admin.question')}
                                   />
                                   <textarea
                                     value={item.answer}
                                     onChange={(e) => updateItem(category.id, item.id, 'answer', e.target.value)}
-                                    className="w-full bg-[#2f2f2f] border border-white/10 rounded-lg px-4 py-3 text-zinc-300 text-sm focus:outline-none focus:border-white/20 transition-colors min-h-[250px] resize-y"
-                                    placeholder="Resposta..."
+                                    className="w-full bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-lg px-4 py-3 text-zinc-700 dark:text-zinc-300 text-sm focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors min-h-[250px] resize-y"
+                                    placeholder={t('admin.answer')}
                                   />
                                   {item.author && (
                                     <div className="text-xs text-zinc-500 flex items-center gap-1">
@@ -747,8 +749,8 @@ export default function AdminPage() {
                                 </div>
                                 <button
                                   onClick={() => deleteItem(category.id, item.id)}
-                                  className="text-zinc-600 hover:text-red-400 transition-colors p-2 h-fit rounded-lg hover:bg-white/5"
-                                  title="Excluir Pergunta"
+                                  className="text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 h-fit rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5"
+                                  title={t('admin.deleteQuestion')}
                                 >
                                   <Trash2 className="w-5 h-5" />
                                 </button>
@@ -763,7 +765,7 @@ export default function AdminPage() {
                           className="w-full py-3 border border-dashed border-white/20 rounded-xl text-zinc-400 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all flex items-center justify-center gap-2 font-medium"
                         >
                           <Plus className="w-5 h-5" />
-                          Adicionar Nova Pergunta
+                          {t('admin.addQuestion')}
                         </button>
                       </div>
                     )}
@@ -777,51 +779,51 @@ export default function AdminPage() {
               className="w-full py-4 border border-dashed border-white/20 rounded-2xl text-zinc-400 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all flex items-center justify-center gap-2 font-medium text-lg"
             >
               <Plus className="w-6 h-6" />
-              Adicionar Nova Categoria
+              {t('admin.addCategory')}
             </button>
           </div>
         </DragDropContext>
         ) : activeTab === 'users' ? (
-          <div className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
             <div className="p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">Gerenciar Usuários</h2>
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">{t('admin.manageUsers')}</h2>
               {isLoadingUsers ? (
-                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-500" /></div>
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-400 dark:text-zinc-500" /></div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-white/10 text-zinc-400 text-sm">
-                        <th className="py-3 px-4 font-medium">E-mail</th>
-                        <th className="py-3 px-4 font-medium">Cargo</th>
-                        <th className="py-3 px-4 font-medium">Status</th>
-                        <th className="py-3 px-4 font-medium text-right">Ações</th>
+                      <tr className="border-b border-black/10 dark:border-white/10 text-zinc-500 dark:text-zinc-400 text-sm transition-colors">
+                        <th className="py-3 px-4 font-medium">{t('admin.email')}</th>
+                        <th className="py-3 px-4 font-medium">{t('profile.role')}</th>
+                        <th className="py-3 px-4 font-medium">{t('admin.status')}</th>
+                        <th className="py-3 px-4 font-medium text-right">{t('admin.actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {usersList.map(u => {
                         const isOnline = u.isOnline && u.lastActive && (Date.now() - u.lastActive < 120000);
                         return (
-                        <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="py-3 px-4 text-zinc-300">{u.email}</td>
+                        <tr key={u.id} className="border-b border-black/5 dark:border-white/5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
+                          <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">{u.email}</td>
                           <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-white/10 text-white border border-white/20' : 'bg-[#212121] text-zinc-400 border border-white/10'}`}>
-                              {u.role === 'admin' ? 'Admin' : 'Membro'}
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-zinc-900 dark:bg-white/10 text-white dark:text-white border border-transparent dark:border-white/20' : 'bg-zinc-100 dark:bg-[#212121] text-zinc-600 dark:text-zinc-400 border border-black/10 dark:border-white/10'}`}>
+                              {u.role === 'admin' ? t('profile.admin') : t('profile.member')}
                             </span>
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-zinc-600'}`}></span>
-                              <span className="text-sm text-zinc-400">{isOnline ? 'Online' : 'Offline'}</span>
+                              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}></span>
+                              <span className="text-sm text-zinc-500 dark:text-zinc-400">{isOnline ? t('admin.online') : t('admin.offline')}</span>
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right">
                             <button
                               onClick={() => toggleUserRole(u.id, u.role)}
                               disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com'}
-                              className="text-sm px-3 py-1.5 rounded-lg bg-[#212121] hover:bg-white/10 text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
+                              className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/10 dark:border-white/10"
                             >
-                              {u.role === 'admin' ? 'Remover Admin' : 'Tornar Admin'}
+                              {u.role === 'admin' ? t('admin.removeAdmin') : t('admin.makeAdmin')}
                             </button>
                           </td>
                         </tr>
@@ -829,7 +831,7 @@ export default function AdminPage() {
                       {usersList.length === 0 && (
                         <tr>
                           <td colSpan={4} className="py-8 text-center text-zinc-500">
-                            Nenhum usuário encontrado.
+                            {t('admin.noUsers')}
                           </td>
                         </tr>
                       )}
@@ -840,41 +842,40 @@ export default function AdminPage() {
             </div>
           </div>
         ) : activeTab === 'fix' ? (
-          <div className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white">Gerenciar Fix</h2>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">{t('admin.manageFix')}</h2>
                 <button
                   onClick={saveFixData}
                   disabled={saveFixStatus === 'saving'}
                   className={`flex items-center gap-2 px-6 py-2 rounded-xl font-medium transition-colors ${
                     saveFixStatus === 'success' ? 'bg-emerald-600 text-white' :
                     saveFixStatus === 'error' ? 'bg-red-600 text-white' :
-                    'bg-white text-black hover:bg-zinc-200'
+                    'bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200'
                   }`}
                 >
                   {saveFixStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
                    saveFixStatus === 'error' ? <AlertTriangle className="w-4 h-4" /> :
                    <Save className="w-4 h-4" />}
-                  {saveFixStatus === 'saving' ? 'Salvando...' :
-                   saveFixStatus === 'success' ? 'Salvo!' :
-                   saveFixStatus === 'error' ? 'Erro ao Salvar' :
-                   'Salvar Fix'}
+                  {saveFixStatus === 'saving' ? t('admin.saving') :
+                   saveFixStatus === 'success' ? t('admin.success') :
+                   saveFixStatus === 'error' ? t('admin.error') :
+                   t('admin.saveFix')}
                 </button>
               </div>
               
               {isLoadingFix ? (
-                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-500" /></div>
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-400 dark:text-zinc-500" /></div>
               ) : (
                 <div className="space-y-6">
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-5 mb-6">
-                    <h3 className="text-blue-400 font-medium mb-2 flex items-center gap-2">
+                  <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-xl p-5 mb-6 transition-colors">
+                    <h3 className="text-blue-700 dark:text-blue-400 font-medium mb-2 flex items-center gap-2">
                       <AlertCircle className="w-5 h-5" />
-                      Hospedagem de Arquivos
+                      {t('admin.fileHosting')}
                     </h3>
-                    <p className="text-blue-300/80 text-sm leading-relaxed">
-                      Você pode fazer o upload do arquivo diretamente aqui. Ele será hospedado anonimamente e de forma gratuita via <strong>Gofile.io</strong> (sem limite de tamanho, suporta CORS).
-                      Arraste o arquivo para a área abaixo ou clique para selecionar.
+                    <p className="text-blue-600 dark:text-blue-300/80 text-sm leading-relaxed">
+                      {t('admin.fileHostingDesc')}
                     </p>
                   </div>
 
@@ -884,7 +885,7 @@ export default function AdminPage() {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
-                      isDragging ? 'border-pink-500 bg-pink-500/5' : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                      isDragging ? 'border-pink-500 bg-pink-50 dark:bg-pink-500/5' : 'border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-zinc-50 dark:hover:bg-white/5'
                     }`}
                   >
                     <input
@@ -894,22 +895,22 @@ export default function AdminPage() {
                       onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
                     />
                     <label htmlFor="fix-upload" className="cursor-pointer flex flex-col items-center">
-                      <div className="w-16 h-16 rounded-full bg-[#212121] flex items-center justify-center mb-4">
+                      <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-[#212121] flex items-center justify-center mb-4 transition-colors">
                         <Upload className="w-8 h-8 text-zinc-400" />
                       </div>
-                      <h3 className="text-lg font-medium text-white mb-2">
-                        Arraste o arquivo do Fix aqui
+                      <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-2">
+                        {t('admin.dragFile')}
                       </h3>
-                      <p className="text-zinc-400 text-sm mb-4">
-                        ou clique para procurar no seu computador
+                      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-4">
+                        {t('admin.orClick')}
                       </p>
                       {uploadProgress !== null && (
                         <div className="w-full max-w-xs mx-auto">
-                          <div className="flex justify-between text-xs text-zinc-400 mb-1">
-                            <span>Enviando...</span>
+                          <div className="flex justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                            <span>{t('admin.uploading')}</span>
                             <span>{Math.round(uploadProgress)}%</span>
                           </div>
-                          <div className="w-full bg-[#171717] rounded-full h-2 overflow-hidden">
+                          <div className="w-full bg-zinc-200 dark:bg-[#171717] rounded-full h-2 overflow-hidden transition-colors">
                             <div
                               className="bg-pink-500 h-2 rounded-full transition-all duration-300"
                               style={{ width: `${uploadProgress}%` }}
@@ -921,42 +922,42 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Título da Correção</label>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-2">{t('admin.fixTitle')}</label>
                     <input
                       type="text"
                       value={fixData.title}
                       onChange={(e) => setFixData({ ...fixData, title: e.target.value })}
-                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
-                      placeholder="Ex: Correção de Bugs v1.2.0"
+                      className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                      placeholder={t('admin.fixTitlePlaceholder')}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Versão</label>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-2">{t('admin.fixVersion')}</label>
                     <input
                       type="text"
                       value={fixData.version}
                       onChange={(e) => setFixData({ ...fixData, version: e.target.value })}
-                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
-                      placeholder="Ex: 1.2.0"
+                      className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                      placeholder={t('admin.fixVersionPlaceholder')}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Link de Download</label>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-2">{t('admin.fixLink')}</label>
                     <input
                       type="url"
                       value={fixData.downloadUrl}
                       onChange={(e) => setFixData({ ...fixData, downloadUrl: e.target.value })}
-                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
+                      className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
                       placeholder="Ex: https://link-para-o-arquivo.com/fix.zip"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Descrição / Detalhes da Atualização</label>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-2">{t('admin.fixDesc')}</label>
                     <textarea
                       value={fixData.description}
                       onChange={(e) => setFixData({ ...fixData, description: e.target.value })}
-                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors min-h-[150px] resize-y"
-                      placeholder="Descreva o que foi corrigido nesta versão..."
+                      className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors min-h-[150px] resize-y"
+                      placeholder={t('admin.fixDescPlaceholder')}
                     />
                   </div>
                 </div>
@@ -964,11 +965,11 @@ export default function AdminPage() {
             </div>
           </div>
         ) : activeTab === 'bot' ? (
-          <div className="bg-[#2f2f2f] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
-            <div className="bg-[#2f2f2f] px-6 py-4 border-b border-white/10 flex items-center justify-between">
+          <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
+            <div className="bg-zinc-50 dark:bg-[#2f2f2f] px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center justify-between transition-colors duration-200">
               <div className="flex items-center gap-3">
-                <Bot className="w-5 h-5 text-white" />
-                <h2 className="text-lg font-semibold text-white">Configurações do Bot (IA)</h2>
+                <Bot className="w-5 h-5 text-zinc-900 dark:text-white" />
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t('admin.botSettings')}</h2>
               </div>
               <button
                 onClick={saveBotSettings}
@@ -976,68 +977,68 @@ export default function AdminPage() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors ${
                   saveBotStatus === 'success' ? 'bg-emerald-600 text-white' :
                   saveBotStatus === 'error' ? 'bg-red-600 text-white' :
-                  'bg-white text-black hover:bg-zinc-200'
+                  'bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200'
                 }`}
               >
                 {saveBotStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
                  saveBotStatus === 'error' ? <AlertTriangle className="w-4 h-4" /> :
                  <Save className="w-4 h-4" />}
-                {saveBotStatus === 'saving' ? 'Salvando...' :
-                 saveBotStatus === 'success' ? 'Salvo!' :
-                 saveBotStatus === 'error' ? 'Erro' :
-                 'Salvar Configurações'}
+                {saveBotStatus === 'saving' ? t('admin.saving') :
+                 saveBotStatus === 'success' ? t('admin.success') :
+                 saveBotStatus === 'error' ? t('admin.error') :
+                 t('admin.saveSettings')}
               </button>
             </div>
             <div className="p-6">
               {isLoadingBot ? (
                 <div className="flex justify-center py-12">
-                  <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-8 h-8 border-4 border-zinc-900 dark:border-white border-t-transparent rounded-full animate-spin"></div>
                 </div>
               ) : (
                 <div className="space-y-6 max-w-2xl">
-                  <div className="bg-[#212121] border border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between">
+                  <div className="bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between transition-colors duration-200">
                     <div>
-                      <h3 className="text-lg font-medium text-white mb-1">Status do Bot</h3>
-                      <p className="text-zinc-400 text-sm">Verifica se a API do Gemini está respondendo corretamente.</p>
+                      <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-1">{t('admin.botStatus')}</h3>
+                      <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.botStatusDesc')}</p>
                       {botStatus === 'error' && (
-                        <p className="text-xs text-red-400 mt-2 bg-red-500/10 p-2 rounded border border-red-500/20">
-                          Erro: {botErrorReason}
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-2 bg-red-50 dark:bg-red-500/10 p-2 rounded border border-red-200 dark:border-red-500/20">
+                          {t('admin.botError')} {botErrorReason}
                         </p>
                       )}
                     </div>
                     <div className="text-center shrink-0">
                       {botStatus === 'checking' ? (
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-sm font-medium border border-yellow-500/20">
-                          <Loader2 className="w-4 h-4 animate-spin" /> Verificando...
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-500 text-sm font-medium border border-yellow-200 dark:border-yellow-500/20 transition-colors">
+                          <Loader2 className="w-4 h-4 animate-spin" /> {t('admin.botChecking')}
                         </span>
                       ) : botStatus === 'online' ? (
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-sm font-medium border border-emerald-500/20">
-                          <CheckCircle2 className="w-4 h-4" /> Operacional
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-500 text-sm font-medium border border-emerald-200 dark:border-emerald-500/20 transition-colors">
+                          <CheckCircle2 className="w-4 h-4" /> {t('admin.botOnline')}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 text-red-500 text-sm font-medium border border-red-500/20">
-                          <AlertTriangle className="w-4 h-4" /> Erro na API
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-500 text-sm font-medium border border-red-200 dark:border-red-500/20 transition-colors">
+                          <AlertTriangle className="w-4 h-4" /> {t('admin.botApiError')}
                         </span>
                       )}
-                      <button onClick={checkBotStatus} className="block mt-2 text-xs text-zinc-500 hover:text-white transition-colors mx-auto">
-                        Testar Novamente
+                      <button onClick={checkBotStatus} className="block mt-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors mx-auto">
+                        {t('admin.botTestAgain')}
                       </button>
                     </div>
                   </div>
 
-                  <div className="bg-[#212121] border border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between">
+                  <div className="bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between transition-colors duration-200">
                     <div>
-                      <h3 className="text-lg font-medium text-white mb-1">Uso Diário</h3>
-                      <p className="text-zinc-400 text-sm">Quantidade de mensagens respondidas pelo bot hoje.</p>
-                      <p className="text-xs text-zinc-500 mt-1">Último reset: {botSettings.lastResetDate || 'Nunca'}</p>
+                      <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-1">{t('admin.dailyUsage')}</h3>
+                      <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.dailyUsageDesc')}</p>
+                      <p className="text-xs text-zinc-500 mt-1">{t('admin.lastReset')} {botSettings.lastResetDate || t('admin.never')}</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-white">
-                        {botSettings.dailyGenerations} <span className="text-zinc-500 text-xl">/ {botSettings.dailyLimit}</span>
+                      <div className="text-3xl font-bold text-zinc-900 dark:text-white">
+                        {botSettings.dailyGenerations} <span className="text-zinc-400 dark:text-zinc-500 text-xl">/ {botSettings.dailyLimit}</span>
                       </div>
-                      <div className="w-full bg-[#2f2f2f] rounded-full h-2 mt-3 overflow-hidden">
+                      <div className="w-full bg-zinc-200 dark:bg-[#2f2f2f] rounded-full h-2 mt-3 overflow-hidden transition-colors">
                         <div 
-                          className={`h-2 rounded-full ${botSettings.dailyGenerations >= botSettings.dailyLimit ? 'bg-red-500' : 'bg-white'}`}
+                          className={`h-2 rounded-full ${botSettings.dailyGenerations >= botSettings.dailyLimit ? 'bg-red-500' : 'bg-zinc-900 dark:bg-white'}`}
                           style={{ width: `${Math.min(100, (botSettings.dailyGenerations / botSettings.dailyLimit) * 100)}%` }}
                         ></div>
                       </div>
@@ -1045,25 +1046,25 @@ export default function AdminPage() {
                   </div>
 
                   {/* Chat Logs */}
-                  <div className="bg-[#212121] border border-white/10 rounded-xl overflow-hidden">
-                    <div className="px-6 py-4 border-b border-white/10">
-                      <h3 className="text-lg font-medium text-white">Log de Mensagens</h3>
-                      <p className="text-zinc-400 text-sm">Últimas perguntas feitas ao bot.</p>
+                  <div className="bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl overflow-hidden transition-colors duration-200">
+                    <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 transition-colors">
+                      <h3 className="text-lg font-medium text-zinc-900 dark:text-white">{t('admin.chatLogs')}</h3>
+                      <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.chatLogsDesc')}</p>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                       {chatLogs.length === 0 ? (
-                        <div className="p-6 text-center text-zinc-500">Nenhuma mensagem registrada ainda.</div>
+                        <div className="p-6 text-center text-zinc-500">{t('admin.noLogs')}</div>
                       ) : (
-                        <div className="divide-y divide-white/5">
+                        <div className="divide-y divide-black/5 dark:divide-white/5 transition-colors">
                           {chatLogs.map((log) => (
-                            <div key={log.id} className="p-4 hover:bg-white/5 transition-colors">
+                            <div key={log.id} className="p-4 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors">
                               <div className="flex justify-between items-start mb-2">
-                                <div className="text-sm font-medium text-white">{log.userEmail}</div>
+                                <div className="text-sm font-medium text-zinc-900 dark:text-white">{log.userEmail}</div>
                                 <div className="text-xs text-zinc-500">
-                                  {new Date(log.timestamp).toLocaleString('pt-BR')}
+                                  {new Date(log.timestamp).toLocaleString(language === 'pt-BR' ? 'pt-BR' : 'en-US')}
                                 </div>
                               </div>
-                              <p className="text-sm text-zinc-300 bg-[#171717] p-3 rounded-lg border border-white/5">
+                              <p className="text-sm text-zinc-700 dark:text-zinc-300 bg-white dark:bg-[#171717] p-3 rounded-lg border border-black/5 dark:border-white/5 transition-colors">
                                 {log.question}
                               </p>
                             </div>
@@ -1074,47 +1075,47 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Limite Diário de Mensagens (Global)</label>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-2">{t('admin.globalLimit')}</label>
                     <input
                       type="number"
                       min="1"
                       value={botSettings.dailyLimit}
                       onChange={(e) => setBotSettings({ ...botSettings, dailyLimit: parseInt(e.target.value) || 100 })}
-                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
+                      className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
                       placeholder="Ex: 1000"
                     />
                     <p className="text-xs text-zinc-500 mt-2">
-                      Define o número máximo de perguntas que o bot pode responder por dia para todos os usuários somados.
+                      {t('admin.globalLimitDesc')}
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Cota Diária por Usuário</label>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-2">{t('admin.userLimit')}</label>
                     <input
                       type="number"
                       min="1"
                       value={botSettings.userDailyLimit}
                       onChange={(e) => setBotSettings({ ...botSettings, userDailyLimit: parseInt(e.target.value) || 10 })}
-                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
+                      className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
                       placeholder="Ex: 10"
                     />
                     <p className="text-xs text-zinc-500 mt-2">
-                      Define quantas perguntas cada usuário individual pode fazer por dia (controlado via navegador).
+                      {t('admin.userLimitDesc')}
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Requisições por Minuto (RPM)</label>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-2">{t('admin.rpmLimit')}</label>
                     <input
                       type="number"
                       min="1"
                       value={botSettings.rpmLimit}
                       onChange={(e) => setBotSettings({ ...botSettings, rpmLimit: parseInt(e.target.value) || 15 })}
-                      className="w-full bg-[#212121] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-colors"
+                      className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
                       placeholder="Ex: 15"
                     />
                     <p className="text-xs text-zinc-500 mt-2">
-                      Define quantas perguntas o usuário pode fazer por minuto (evita spam rápido).
+                      {t('admin.rpmLimitDesc')}
                     </p>
                   </div>
                 </div>
@@ -1130,16 +1131,16 @@ export default function AdminPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-[#2f2f2f] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-sm"
+            className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-6 max-w-md w-full shadow-sm transition-colors duration-200"
           >
-            <h3 className="text-xl font-semibold text-white mb-2">{confirmModal.title}</h3>
-            <p className="text-zinc-400 mb-6">{confirmModal.message}</p>
+            <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">{confirmModal.title}</h3>
+            <p className="text-zinc-600 dark:text-zinc-400 mb-6">{confirmModal.message}</p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-                className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white bg-[#212121] hover:bg-white/5 rounded-xl transition-colors border border-white/10"
+                className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10"
               >
-                Cancelar
+                {t('admin.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -1148,7 +1149,7 @@ export default function AdminPage() {
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
               >
-                Confirmar
+                {t('admin.confirm')}
               </button>
             </div>
           </motion.div>
