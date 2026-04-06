@@ -59,10 +59,11 @@ interface FaqContextType {
   updateFaqData: (newData: FaqCategory[]) => Promise<void>;
   resetToDefault: () => Promise<void>;
   user: User | null;
+  userData: any | null;
   isAdmin: boolean;
   isAuthReady: boolean;
   login: (email?: string, password?: string) => Promise<void>;
-  signup: (email?: string, password?: string) => Promise<void>;
+  signup: (email?: string, password?: string, username?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -71,6 +72,7 @@ const FaqContext = createContext<FaqContextType | undefined>(undefined);
 export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [faqData, setFaqData] = useState<FaqCategory[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<any | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -90,19 +92,28 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Check if user is admin based on Firestore role
         try {
           unsubscribeUser = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
-            setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
+            if (userDoc.exists()) {
+              setUserData(userDoc.data());
+              setIsAdmin(userDoc.data().role === 'admin');
+            } else {
+              setUserData(null);
+              setIsAdmin(false);
+            }
             setIsAuthReady(true);
           }, (error) => {
             console.error("Error checking admin status:", error);
+            setUserData(null);
             setIsAdmin(false);
             setIsAuthReady(true);
           });
         } catch (error) {
           console.error("Error checking admin status:", error);
+          setUserData(null);
           setIsAdmin(false);
           setIsAuthReady(true);
         }
       } else {
+        setUserData(null);
         setIsAdmin(false);
         setIsAuthReady(true);
       }
@@ -212,6 +223,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                  await setDoc(doc(db, 'users', userCredential.user.uid), {
                    email: email,
+                   username: 'Admin Principal',
                    role: 'admin'
                  });
                } catch (createError: any) {
@@ -239,12 +251,13 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const signup = async (email?: string, password?: string) => {
+  const signup = async (email?: string, password?: string, username?: string) => {
     try {
-      if (!email || !password) throw new Error("Email and password required");
+      if (!email || !password || !username) throw new Error("Email, password and username required");
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         email: email,
+        username: username,
         role: 'user'
       });
     } catch (error) {
@@ -263,7 +276,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <FaqContext.Provider value={{ faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, signup, logout }}>
+    <FaqContext.Provider value={{ faqData, updateFaqData, resetToDefault, user, userData, isAdmin, isAuthReady, login, signup, logout }}>
       {children}
     </FaqContext.Provider>
   );

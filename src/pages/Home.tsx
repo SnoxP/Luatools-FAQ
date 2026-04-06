@@ -26,7 +26,7 @@ const getAI = () => {
 import { useChat, Message } from '../context/ChatContext';
 
 export default function Home() {
-  const { faqData, user } = useFaq();
+  const { faqData, user, userData } = useFaq();
   const { t } = useSettings();
   const { currentSessionId, messages, setMessages, saveSessionToStorage, isSidebarOpen, setIsSidebarOpen } = useChat();
   const [input, setInput] = useState('');
@@ -90,6 +90,7 @@ export default function Home() {
         await setDoc(logRef, {
           userId: user.uid,
           userEmail: user.email || 'Desconhecido',
+          username: userData?.username || '',
           question: userText || '[Imagem enviada]',
           timestamp: Date.now()
         });

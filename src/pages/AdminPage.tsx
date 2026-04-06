@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 export default function AdminPage() {
-  const { faqData, updateFaqData, resetToDefault, user, isAdmin, isAuthReady, login, signup, logout } = useFaq();
+  const { faqData, updateFaqData, resetToDefault, user, userData, isAdmin, isAuthReady, login, signup, logout } = useFaq();
   const { t, language } = useSettings();
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,12 +22,14 @@ export default function AdminPage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   
   const [activeTab, setActiveTab] = useState<'faq' | 'users' | 'fix' | 'bot'>('faq');
-  const [usersList, setUsersList] = useState<{id: string, email: string, role: string, isOnline?: boolean, lastActive?: number}[]>([]);
+  const [usersList, setUsersList] = useState<{id: string, email: string, username?: string, role: string, isOnline?: boolean, lastActive?: number}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [editingUser, setEditingUser] = useState<{id: string, username: string, role: string} | null>(null);
 
   // Modal state
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
@@ -327,6 +329,25 @@ export default function AdminPage() {
     }
   };
 
+  const saveUserEdit = async () => {
+    if (!editingUser) return;
+    const userToEdit = usersList.find(u => u.id === editingUser.id);
+    if (userToEdit && (userToEdit.email === 'pedronobreneto27@gmail.com' || userToEdit.email === 'pedronobreneto@gmail.com')) {
+      alert("Não é permitido editar o administrador principal.");
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'users', editingUser.id), { 
+        username: editingUser.username,
+        role: editingUser.role 
+      });
+      setUsersList(usersList.map(u => u.id === editingUser.id ? { ...u, username: editingUser.username, role: editingUser.role } : u));
+      setEditingUser(null);
+    } catch (err) {
+      console.error("Error updating user", err);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -334,7 +355,7 @@ export default function AdminPage() {
       if (isLoginMode) {
         await login(email, password);
       } else {
-        await signup(email, password);
+        await signup(email, password, username);
       }
       // Note: The redirect is handled by a useEffect watching the user/isAdmin state
     } catch (err: any) {
@@ -428,7 +449,7 @@ export default function AdminPage() {
       if (cat.id === categoryId) {
         return {
           ...cat,
-          items: [...cat.items, { id: newItemId, question: 'Nova Pergunta', answer: 'Resposta aqui...', author: user?.email || 'Desconhecido' }]
+          items: [...cat.items, { id: newItemId, question: 'Nova Pergunta', answer: 'Resposta aqui...', author: userData?.username || user?.email || 'Desconhecido' }]
         };
       }
       return cat;
@@ -522,6 +543,18 @@ export default function AdminPage() {
           </div>
           
           <form onSubmit={handleAuth} className="space-y-4">
+            {!isLoginMode && (
+              <div>
+                <input
+                  type="text"
+                  placeholder="Nome de usuário"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                  required
+                />
+              </div>
+            )}
             <div>
               <input
                 type="email"
@@ -794,7 +827,7 @@ export default function AdminPage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-black/10 dark:border-white/10 text-zinc-500 dark:text-zinc-400 text-sm transition-colors">
-                        <th className="py-3 px-4 font-medium">{t('admin.email')}</th>
+                        <th className="py-3 px-4 font-medium">Usuário</th>
                         <th className="py-3 px-4 font-medium">{t('profile.role')}</th>
                         <th className="py-3 px-4 font-medium">{t('admin.status')}</th>
                         <th className="py-3 px-4 font-medium text-right">{t('admin.actions')}</th>
@@ -805,7 +838,10 @@ export default function AdminPage() {
                         const isOnline = u.isOnline && u.lastActive && (Date.now() - u.lastActive < 120000);
                         return (
                         <tr key={u.id} className="border-b border-black/5 dark:border-white/5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
-                          <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">{u.email}</td>
+                          <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">
+                            <div className="font-medium">{u.username || 'Sem nome'}</div>
+                            <div className="text-xs text-zinc-500">{u.email}</div>
+                          </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-zinc-900 dark:bg-white/10 text-white dark:text-white border border-transparent dark:border-white/20' : 'bg-zinc-100 dark:bg-[#212121] text-zinc-600 dark:text-zinc-400 border border-black/10 dark:border-white/10'}`}>
                               {u.role === 'admin' ? t('profile.admin') : t('profile.member')}
@@ -818,13 +854,15 @@ export default function AdminPage() {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <button
-                              onClick={() => toggleUserRole(u.id, u.role)}
-                              disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com'}
-                              className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/10 dark:border-white/10"
-                            >
-                              {u.role === 'admin' ? t('admin.removeAdmin') : t('admin.makeAdmin')}
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => setEditingUser({ id: u.id, username: u.username || '', role: u.role })}
+                                disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com'}
+                                className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/10 dark:border-white/10"
+                              >
+                                Editar
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )})}
@@ -1059,7 +1097,7 @@ export default function AdminPage() {
                           {chatLogs.map((log) => (
                             <div key={log.id} className="p-4 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors">
                               <div className="flex justify-between items-start mb-2">
-                                <div className="text-sm font-medium text-zinc-900 dark:text-white">{log.userEmail}</div>
+                                <div className="text-sm font-medium text-zinc-900 dark:text-white">{log.username || log.userEmail}</div>
                                 <div className="text-xs text-zinc-500">
                                   {new Date(log.timestamp).toLocaleString(language === 'pt-BR' ? 'pt-BR' : 'en-US')}
                                 </div>
@@ -1150,6 +1188,55 @@ export default function AdminPage() {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
               >
                 {t('admin.confirm')}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-6 max-w-md w-full shadow-sm transition-colors duration-200"
+          >
+            <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">Editar Usuário</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Nome de usuário</label>
+                <input
+                  type="text"
+                  value={editingUser.username}
+                  onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                  className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-2 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Cargo</label>
+                <select
+                  value={editingUser.role}
+                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                  className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-2 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                >
+                  <option value="user">Membro</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setEditingUser(null)}
+                className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={saveUserEdit}
+                className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 rounded-xl transition-colors"
+              >
+                Salvar
               </button>
             </div>
           </motion.div>
