@@ -437,7 +437,7 @@ export default function AdminPage() {
       title: 'Excluir Categoria',
       message: 'Tem certeza que deseja excluir esta categoria e todas as suas perguntas?',
       onConfirm: () => {
-        setLocalData(localData.filter(cat => cat.id !== categoryId));
+        setLocalData(prev => prev.filter(cat => cat.id !== categoryId));
       }
     });
   };
@@ -474,7 +474,7 @@ export default function AdminPage() {
       title: 'Excluir Pergunta',
       message: 'Tem certeza que deseja excluir esta pergunta?',
       onConfirm: () => {
-        setLocalData(localData.map(cat => {
+        setLocalData(prev => prev.map(cat => {
           if (cat.id === categoryId) {
             return { ...cat, items: cat.items.filter(item => item.id !== itemId) };
           }
@@ -1175,15 +1175,19 @@ export default function AdminPage() {
             <p className="text-zinc-600 dark:text-zinc-400 mb-6">{confirmModal.message}</p>
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
                 className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10"
               >
                 {t('admin.cancel')}
               </button>
               <button
                 onClick={() => {
-                  confirmModal.onConfirm();
-                  setConfirmModal({ ...confirmModal, isOpen: false });
+                  try {
+                    confirmModal.onConfirm();
+                  } catch (err) {
+                    console.error("Error in onConfirm:", err);
+                  }
+                  setConfirmModal(prev => ({ ...prev, isOpen: false }));
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
               >
