@@ -436,8 +436,19 @@ export default function AdminPage() {
       isOpen: true,
       title: 'Excluir Categoria',
       message: 'Tem certeza que deseja excluir esta categoria e todas as suas perguntas?',
-      onConfirm: () => {
-        setLocalData(prev => prev.filter(cat => cat.id !== categoryId));
+      onConfirm: async () => {
+        const newData = localData.filter(cat => cat.id !== categoryId);
+        setLocalData(newData);
+        try {
+          setSaveStatus('saving');
+          await updateFaqData(newData);
+          setSaveStatus('success');
+          setTimeout(() => setSaveStatus('idle'), 3000);
+        } catch (err) {
+          console.error(err);
+          setSaveStatus('error');
+          setTimeout(() => setSaveStatus('idle'), 3000);
+        }
       }
     });
   };
@@ -473,13 +484,24 @@ export default function AdminPage() {
       isOpen: true,
       title: 'Excluir Pergunta',
       message: 'Tem certeza que deseja excluir esta pergunta?',
-      onConfirm: () => {
-        setLocalData(prev => prev.map(cat => {
+      onConfirm: async () => {
+        const newData = localData.map(cat => {
           if (cat.id === categoryId) {
             return { ...cat, items: cat.items.filter(item => item.id !== itemId) };
           }
           return cat;
-        }));
+        });
+        setLocalData(newData);
+        try {
+          setSaveStatus('saving');
+          await updateFaqData(newData);
+          setSaveStatus('success');
+          setTimeout(() => setSaveStatus('idle'), 3000);
+        } catch (err) {
+          console.error(err);
+          setSaveStatus('error');
+          setTimeout(() => setSaveStatus('idle'), 3000);
+        }
       }
     });
   };
