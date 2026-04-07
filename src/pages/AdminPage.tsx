@@ -4,7 +4,7 @@ import { useFaq } from '../context/FaqContext';
 import { useSettings } from '../context/SettingsContext';
 import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon, AlertCircle, Upload } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
-import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot } from '../firebase';
+import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot, query, orderBy, limit, startAfter } from '../firebase';
 import { GoogleGenAI } from '@google/genai';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -48,6 +48,16 @@ export default function AdminPage() {
   const [botStatus, setBotStatus] = useState<'checking' | 'online' | 'error'>('checking');
   const [botErrorReason, setBotErrorReason] = useState<string>('');
   const [chatLogs, setChatLogs] = useState<any[]>([]);
+  const [lastLogDoc, setLastLogDoc] = useState<any>(null);
+  const [hasMoreLogs, setHasMoreLogs] = useState(true);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  
+  // Admin Logs state
+  const [adminLogs, setAdminLogs] = useState<any[]>([]);
+  const [lastAdminLogDoc, setLastAdminLogDoc] = useState<any>(null);
+  const [hasMoreAdminLogs, setHasMoreAdminLogs] = useState(true);
+  const [isLoadingAdminLogs, setIsLoadingAdminLogs] = useState(false);
+  const isSuperAdmin = user?.email === 'pedronobreneto27@gmail.com';
 
   // Sync local data when faqData changes (e.g., loaded from Firestore)
   useEffect(() => {
@@ -83,24 +93,96 @@ export default function AdminPage() {
       } else if (activeTab === 'bot') {
         fetchBotSettings();
         checkBotStatus();
-        
-        // Fetch chat logs
-        unsubscribeLogs = onSnapshot(collection(db, 'chat_logs'), (snapshot) => {
-          const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
-          // Sort by timestamp descending
-          logs.sort((a, b) => b.timestamp - a.timestamp);
-          setChatLogs(logs);
-        }, (err) => {
-          console.error("Error fetching chat logs", err);
-        });
+        fetchChatLogs();
+      } else if (activeTab === 'logs' && isSuperAdmin) {
+        fetchAdminLogs();
       }
     }
 
     return () => {
       if (unsubscribeUsers) unsubscribeUsers();
-      if (unsubscribeLogs) unsubscribeLogs();
     };
   }, [isAdmin, activeTab]);
+
+  const fetchChatLogs = async (loadMore = false) => {
+    if (isLoadingLogs) return;
+    setIsLoadingLogs(true);
+    try {
+      let q = query(collection(db, 'chat_logs'), orderBy('timestamp', 'desc'), limit(20));
+      if (loadMore && lastLogDoc) {
+        q = query(collection(db, 'chat_logs'), orderBy('timestamp', 'desc'), startAfter(lastLogDoc), limit(20));
+      }
+      const snapshot = await getDocs(q);
+      const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      
+      if (snapshot.docs.length > 0) {
+        setLastLogDoc(snapshot.docs[snapshot.docs.length - 1]);
+      }
+      if (snapshot.docs.length < 20) {
+        setHasMoreLogs(false);
+      } else {
+        setHasMoreLogs(true);
+      }
+
+      if (loadMore) {
+        setChatLogs(prev => [...prev, ...logs]);
+      } else {
+        setChatLogs(logs);
+      }
+    } catch (err) {
+      console.error("Error fetching chat logs", err);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  const fetchAdminLogs = async (loadMore = false) => {
+    if (isLoadingAdminLogs) return;
+    setIsLoadingAdminLogs(true);
+    try {
+      let q = query(collection(db, 'admin_logs'), orderBy('timestamp', 'desc'), limit(20));
+      if (loadMore && lastAdminLogDoc) {
+        q = query(collection(db, 'admin_logs'), orderBy('timestamp', 'desc'), startAfter(lastAdminLogDoc), limit(20));
+      }
+      const snapshot = await getDocs(q);
+      const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      
+      if (snapshot.docs.length > 0) {
+        setLastAdminLogDoc(snapshot.docs[snapshot.docs.length - 1]);
+      }
+      if (snapshot.docs.length < 20) {
+        setHasMoreAdminLogs(false);
+      } else {
+        setHasMoreAdminLogs(true);
+      }
+
+      if (loadMore) {
+        setAdminLogs(prev => [...prev, ...logs]);
+      } else {
+        setAdminLogs(logs);
+      }
+    } catch (err) {
+      console.error("Error fetching admin logs", err);
+    } finally {
+      setIsLoadingAdminLogs(false);
+    }
+  };
+
+  const logAdminAction = async (action: string, details: string) => {
+    if (!user) return;
+    try {
+      const { setDoc } = await import('../firebase');
+      const logId = `log_${Date.now()}`;
+      await setDoc(doc(db, 'admin_logs', logId), {
+        action,
+        details,
+        userEmail: user.email,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      console.error("Error logging admin action", err);
+    }
+  };
 
   const checkBotStatus = async () => {
     setBotStatus('checking');
@@ -310,6 +392,7 @@ export default function AdminPage() {
         ...fixData,
         updatedAt: now
       }, { merge: true });
+      await logAdminAction('update_fix', 'Dados de correção atualizados');
       setSaveFixStatus('success');
       setTimeout(() => setSaveFixStatus('idle'), 3000);
     } catch (err) {
@@ -323,6 +406,7 @@ export default function AdminPage() {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     try {
       await updateDoc(doc(db, 'users', userId), { role: newRole });
+      await logAdminAction('update_user_role', `Cargo atualizado para ${newRole} do usuário ${userId}`);
       setUsersList(usersList.map(u => u.id === userId ? { ...u, role: newRole } : u));
     } catch (err) {
       console.error("Error updating role", err);
@@ -341,6 +425,7 @@ export default function AdminPage() {
         username: editingUser.username,
         role: editingUser.role 
       });
+      await logAdminAction('edit_user', `Usuário editado: ${editingUser.id}`);
       setUsersList(usersList.map(u => u.id === editingUser.id ? { ...u, username: editingUser.username, role: editingUser.role } : u));
       setEditingUser(null);
     } catch (err) {
@@ -382,6 +467,7 @@ export default function AdminPage() {
     try {
       setSaveStatus('saving');
       await updateFaqData(localData);
+      await logAdminAction('update_faq', 'FAQ atualizado manualmente');
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
@@ -399,6 +485,7 @@ export default function AdminPage() {
       onConfirm: async () => {
         try {
           await resetToDefault();
+          await logAdminAction('reset_faq', 'FAQ restaurado para o padrão');
           setSaveStatus('success');
           setTimeout(() => setSaveStatus('idle'), 3000);
         } catch (err) {
@@ -442,6 +529,7 @@ export default function AdminPage() {
         try {
           setSaveStatus('saving');
           await updateFaqData(newData);
+          await logAdminAction('delete_category', `Categoria excluída: ${categoryId}`);
           setSaveStatus('success');
           setTimeout(() => setSaveStatus('idle'), 3000);
         } catch (err) {
@@ -495,6 +583,7 @@ export default function AdminPage() {
         try {
           setSaveStatus('saving');
           await updateFaqData(newData);
+          await logAdminAction('delete_faq_item', `Pergunta excluída da categoria: ${categoryId}`);
           setSaveStatus('success');
           setTimeout(() => setSaveStatus('idle'), 3000);
         } catch (err) {
@@ -727,6 +816,15 @@ export default function AdminPage() {
             <Bot className="w-4 h-4" />
             {t('admin.tabBot')}
           </button>
+          {isSuperAdmin && (
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'logs' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+            >
+              <AlertCircle className="w-4 h-4" />
+              Logs de Atividade
+            </button>
+          )}
         </div>
 
         {activeTab === 'faq' ? (
@@ -1129,6 +1227,17 @@ export default function AdminPage() {
                               </p>
                             </div>
                           ))}
+                          {hasMoreLogs && (
+                            <div className="p-4 text-center">
+                              <button
+                                onClick={() => fetchChatLogs(true)}
+                                disabled={isLoadingLogs}
+                                className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10 disabled:opacity-50"
+                              >
+                                {isLoadingLogs ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Carregar mais'}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1180,6 +1289,52 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        ) : activeTab === 'logs' && isSuperAdmin ? (
+          <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
+            <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center justify-between transition-colors">
+              <div>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Logs de Atividade</h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Histórico de ações administrativas.</p>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="max-h-[600px] overflow-y-auto">
+                {adminLogs.length === 0 ? (
+                  <div className="text-center text-zinc-500 py-8">Nenhum log encontrado.</div>
+                ) : (
+                  <div className="divide-y divide-black/5 dark:divide-white/5">
+                    {adminLogs.map((log) => (
+                      <div key={log.id} className="py-4">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="font-medium text-zinc-900 dark:text-white">{log.action}</div>
+                          <div className="text-xs text-zinc-500">
+                            {new Date(log.timestamp).toLocaleString(language === 'pt-BR' ? 'pt-BR' : 'en-US')}
+                          </div>
+                        </div>
+                        <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                          <span className="font-medium">Usuário:</span> {log.userEmail}
+                        </div>
+                        <div className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 bg-zinc-50 dark:bg-[#212121] p-3 rounded-lg border border-black/5 dark:border-white/5">
+                          {log.details}
+                        </div>
+                      </div>
+                    ))}
+                    {hasMoreAdminLogs && (
+                      <div className="pt-4 text-center">
+                        <button
+                          onClick={() => fetchAdminLogs(true)}
+                          disabled={isLoadingAdminLogs}
+                          className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10 disabled:opacity-50"
+                        >
+                          {isLoadingAdminLogs ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Carregar mais'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : null}

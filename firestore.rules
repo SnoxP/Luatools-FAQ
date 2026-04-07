@@ -88,6 +88,15 @@ service cloud.firestore {
              request.resource.data.timestamp is number;
     }
 
+    function isValidAdminLog() {
+      return hasOnlyAllowedFields(['action', 'details', 'userEmail', 'timestamp']) &&
+             hasRequiredFields(['action', 'details', 'userEmail', 'timestamp']) &&
+             request.resource.data.action is string && request.resource.data.action.size() > 0 && request.resource.data.action.size() < 100 &&
+             request.resource.data.details is string && request.resource.data.details.size() > 0 && request.resource.data.details.size() < 5000 &&
+             request.resource.data.userEmail is string && request.resource.data.userEmail.size() > 0 && request.resource.data.userEmail.size() < 100 &&
+             request.resource.data.timestamp is number;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -114,6 +123,12 @@ service cloud.firestore {
     match /chat_logs/{logId} {
       allow read: if isAdmin();
       allow create: if isAuthenticated() && isValidChatLog() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /admin_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidAdminLog();
       allow update, delete: if false;
     }
   }
