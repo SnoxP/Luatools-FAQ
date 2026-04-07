@@ -26,10 +26,17 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'faq' | 'users' | 'fix' | 'bot'>('faq');
-  const [usersList, setUsersList] = useState<{id: string, email: string, username?: string, role: string, isOnline?: boolean, lastActive?: number}[]>([]);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'faq' | 'users' | 'fix' | 'bot' | 'logs'>('dashboard');
+  const [usersList, setUsersList] = useState<{id: string, email: string, username?: string, role: string, isOnline?: boolean, lastActive?: number, isBanned?: boolean}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [editingUser, setEditingUser] = useState<{id: string, username: string, role: string} | null>(null);
+
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState<{today: {visits: number, logins: number}, yesterday: {visits: number, logins: number}}>({
+    today: {visits: 0, logins: 0},
+    yesterday: {visits: 0, logins: 0}
+  });
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
 
   // Modal state
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
@@ -96,6 +103,8 @@ export default function AdminPage() {
         fetchChatLogs();
       } else if (activeTab === 'logs' && isSuperAdmin) {
         fetchAdminLogs();
+      } else if (activeTab === 'dashboard') {
+        fetchAnalytics();
       }
     }
 
@@ -103,6 +112,36 @@ export default function AdminPage() {
       if (unsubscribeUsers) unsubscribeUsers();
     };
   }, [isAdmin, activeTab]);
+
+  const fetchAnalytics = async () => {
+    setIsLoadingAnalytics(true);
+    try {
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const todayStr = today.toISOString().split('T')[0];
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      const todayDoc = await getDoc(doc(db, 'analytics', todayStr));
+      const yesterdayDoc = await getDoc(doc(db, 'analytics', yesterdayStr));
+
+      setAnalyticsData({
+        today: {
+          visits: todayDoc.exists() ? todayDoc.data().visits || 0 : 0,
+          logins: todayDoc.exists() ? todayDoc.data().logins || 0 : 0
+        },
+        yesterday: {
+          visits: yesterdayDoc.exists() ? yesterdayDoc.data().visits || 0 : 0,
+          logins: yesterdayDoc.exists() ? yesterdayDoc.data().logins || 0 : 0
+        }
+      });
+    } catch (err) {
+      console.error("Error fetching analytics", err);
+    } finally {
+      setIsLoadingAnalytics(false);
+    }
+  };
 
   const fetchChatLogs = async (loadMore = false) => {
     if (isLoadingLogs) return;
@@ -410,6 +449,17 @@ export default function AdminPage() {
       setUsersList(usersList.map(u => u.id === userId ? { ...u, role: newRole } : u));
     } catch (err) {
       console.error("Error updating role", err);
+    }
+  };
+
+  const toggleUserBan = async (userId: string, currentBanStatus: boolean) => {
+    const newBanStatus = !currentBanStatus;
+    try {
+      await updateDoc(doc(db, 'users', userId), { isBanned: newBanStatus });
+      await logAdminAction(newBanStatus ? 'ban_user' : 'unban_user', `Usuário ${newBanStatus ? 'banido' : 'desbanido'}: ${userId}`);
+      setUsersList(usersList.map(u => u.id === userId ? { ...u, isBanned: newBanStatus } : u));
+    } catch (err) {
+      console.error("Error updating ban status", err);
     }
   };
 
@@ -789,6 +839,13 @@ export default function AdminPage() {
 
         <div className="flex border-b border-black/10 dark:border-white/10 mb-8 overflow-x-auto hide-scrollbar">
           <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'dashboard' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            Visão Geral
+          </button>
+          <button
             onClick={() => setActiveTab('faq')}
             className={`px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'faq' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
           >
@@ -827,7 +884,77 @@ export default function AdminPage() {
           )}
         </div>
 
-        {activeTab === 'faq' ? (
+        {activeTab === 'dashboard' ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Visits Card */}
+              <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-6 shadow-sm transition-colors duration-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-zinc-900 dark:text-white">Visitas Hoje</h3>
+                  <div className="p-2 bg-blue-50 dark:bg-blue-500/10 rounded-lg">
+                    <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                {isLoadingAnalytics ? (
+                  <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
+                ) : (
+                  <>
+                    <div className="text-4xl font-bold text-zinc-900 dark:text-white mb-2">
+                      {analyticsData.today.visits}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      {analyticsData.today.visits >= analyticsData.yesterday.visits ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                          +{analyticsData.today.visits - analyticsData.yesterday.visits}
+                        </span>
+                      ) : (
+                        <span className="text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                          {analyticsData.today.visits - analyticsData.yesterday.visits}
+                        </span>
+                      )}
+                      <span className="text-zinc-500 dark:text-zinc-400">em relação a ontem ({analyticsData.yesterday.visits})</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Logins Card */}
+              <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-6 shadow-sm transition-colors duration-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-zinc-900 dark:text-white">Logins Hoje</h3>
+                  <div className="p-2 bg-purple-50 dark:bg-purple-500/10 rounded-lg">
+                    <LogOut className="w-5 h-5 text-purple-600 dark:text-purple-400 rotate-180" />
+                  </div>
+                </div>
+                {isLoadingAnalytics ? (
+                  <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
+                ) : (
+                  <>
+                    <div className="text-4xl font-bold text-zinc-900 dark:text-white mb-2">
+                      {analyticsData.today.logins}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      {analyticsData.today.logins >= analyticsData.yesterday.logins ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                          +{analyticsData.today.logins - analyticsData.yesterday.logins}
+                        </span>
+                      ) : (
+                        <span className="text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                          {analyticsData.today.logins - analyticsData.yesterday.logins}
+                        </span>
+                      )}
+                      <span className="text-zinc-500 dark:text-zinc-400">em relação a ontem ({analyticsData.yesterday.logins})</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : activeTab === 'faq' ? (
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="space-y-6">
               {localData.map((category) => (
@@ -971,6 +1098,11 @@ export default function AdminPage() {
                             <div className="flex items-center gap-2">
                               <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}></span>
                               <span className="text-sm text-zinc-500 dark:text-zinc-400">{isOnline ? t('admin.online') : t('admin.offline')}</span>
+                              {u.isBanned && (
+                                <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 uppercase tracking-wider">
+                                  Banido
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right">
@@ -981,6 +1113,17 @@ export default function AdminPage() {
                                 className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/10 dark:border-white/10"
                               >
                                 Editar
+                              </button>
+                              <button
+                                onClick={() => toggleUserBan(u.id, !!u.isBanned)}
+                                disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com'}
+                                className={`text-sm px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border ${
+                                  u.isBanned 
+                                    ? 'bg-emerald-100/50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 dark:border-emerald-500/20' 
+                                    : 'bg-red-50 text-red-600 hover:bg-red-100 border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 dark:border-red-500/20'
+                                }`}
+                              >
+                                {u.isBanned ? 'Desbanir' : 'Banir'}
                               </button>
                             </div>
                           </td>

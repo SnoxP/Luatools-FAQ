@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { FaqCategory, defaultFaq } from '../data/defaultFaq';
-import { auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot } from '../firebase';
+import { auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
 import { User } from 'firebase/auth';
 
 enum OperationType {
@@ -93,8 +93,20 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           unsubscribeUser = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
             if (userDoc.exists()) {
-              setUserData(userDoc.data());
-              setIsAdmin(userDoc.data().role === 'admin');
+              const data = userDoc.data();
+              if (data.isBanned) {
+                // If banned, sign out immediately
+                signOut(auth).then(() => {
+                  setUser(null);
+                  setUserData(null);
+                  setIsAdmin(false);
+                  setIsAuthReady(true);
+                  alert("Sua conta foi banida. Entre em contato com o administrador.");
+                });
+                return;
+              }
+              setUserData(data);
+              setIsAdmin(data.role === 'admin');
             } else {
               setUserData(null);
               setIsAdmin(false);
@@ -124,6 +136,47 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (unsubscribeUser) unsubscribeUser();
     };
   }, []);
+
+  // Analytics Tracker
+  useEffect(() => {
+    const trackVisit = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const visitKey = `visited_${today}`;
+      
+      if (!sessionStorage.getItem(visitKey)) {
+        try {
+          await setDoc(doc(db, 'analytics', today), {
+            visits: increment(1)
+          }, { merge: true });
+          sessionStorage.setItem(visitKey, 'true');
+        } catch (err) {
+          console.error("Error tracking visit", err);
+        }
+      }
+    };
+    trackVisit();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      const trackLogin = async () => {
+        const today = new Date().toISOString().split('T')[0];
+        const loginKey = `logged_in_${today}_${user.uid}`;
+        
+        if (!sessionStorage.getItem(loginKey)) {
+          try {
+            await setDoc(doc(db, 'analytics', today), {
+              logins: increment(1)
+            }, { merge: true });
+            sessionStorage.setItem(loginKey, 'true');
+          } catch (err) {
+            console.error("Error tracking login", err);
+          }
+        }
+      };
+      trackLogin();
+    }
+  }, [user]);
 
   // Presence Tracker
   useEffect(() => {

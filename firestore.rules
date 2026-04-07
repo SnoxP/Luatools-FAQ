@@ -68,7 +68,7 @@ service cloud.firestore {
     }
 
     function isValidUser() {
-      return hasOnlyAllowedFields(['email', 'role', 'isOnline', 'lastActive', 'username', 'discordId', 'bio']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'isOnline', 'lastActive', 'username', 'discordId', 'bio', 'isBanned']) &&
              hasRequiredFields(['email', 'role']) &&
              isValidEmail(request.resource.data.email) &&
              request.resource.data.role in ['admin', 'user'] &&
@@ -76,7 +76,8 @@ service cloud.firestore {
              (!('lastActive' in request.resource.data) || request.resource.data.lastActive is number) &&
              (!('username' in request.resource.data) || request.resource.data.username is string) &&
              (!('discordId' in request.resource.data) || request.resource.data.discordId is string) &&
-             (!('bio' in request.resource.data) || request.resource.data.bio is string);
+             (!('bio' in request.resource.data) || request.resource.data.bio is string) &&
+             (!('isBanned' in request.resource.data) || request.resource.data.isBanned is bool);
     }
 
     function isValidChatLog() {
@@ -130,6 +131,12 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAdmin() && isValidAdminLog();
       allow update, delete: if false;
+    }
+
+    match /analytics/{dateStr} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow update: if true;
     }
   }
 }
