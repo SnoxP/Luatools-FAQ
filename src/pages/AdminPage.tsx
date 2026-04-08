@@ -1073,14 +1073,14 @@ export default function AdminPage() {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => setEditingUser({ id: u.id, username: u.username || '', role: u.role })}
-                                disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com' || u.id === '542832142745337867' || u.discordId === '542832142745337867'}
+                                disabled={u.id === '542832142745337867' || u.discordId === '542832142745337867'}
                                 className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/10 dark:border-white/10"
                               >
                                 Editar
                               </button>
                               <button
                                 onClick={() => toggleUserBan(u.id, !!u.isBanned)}
-                                disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com' || u.id === '542832142745337867' || u.discordId === '542832142745337867'}
+                                disabled={u.id === '542832142745337867' || u.discordId === '542832142745337867'}
                                 className={`text-sm px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border ${
                                   u.isBanned 
                                     ? 'bg-emerald-100/50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 dark:border-emerald-500/20' 
@@ -1091,7 +1091,7 @@ export default function AdminPage() {
                               </button>
                               <button
                                 onClick={() => kickUser(u.id)}
-                                disabled={u.email === 'pedronobreneto27@gmail.com' || u.email === 'pedronobreneto@gmail.com' || u.id === '542832142745337867' || u.discordId === '542832142745337867'}
+                                disabled={u.id === '542832142745337867' || u.discordId === '542832142745337867'}
                                 className="text-sm px-3 py-1.5 rounded-lg bg-red-100/50 text-red-700 hover:bg-red-100 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 dark:border-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Expulsar
