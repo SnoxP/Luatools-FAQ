@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'faq' | 'users' | 'fix' | 'bot' | 'logs'>('dashboard');
   const [usersList, setUsersList] = useState<{id: string, email: string, username?: string, discordId?: string, role: string, isOnline?: boolean, lastActive?: number, isBanned?: boolean}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<{id: string, username: string, role: string} | null>(null);
 
   // Analytics state
@@ -85,14 +86,27 @@ export default function AdminPage() {
     if (isAdmin) {
       if (activeTab === 'users') {
         setIsLoadingUsers(true);
-        unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-          const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
-          setUsersList(users);
-          setIsLoadingUsers(false);
-        }, (err) => {
-          console.error("Error fetching users", err);
-          setIsLoadingUsers(false);
-        });
+        setUsersError(null);
+        
+        const fetchUsers = (retryCount = 0) => {
+          getDocs(collection(db, 'users')).then(snapshot => {
+            const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+            setUsersList(users);
+            setIsLoadingUsers(false);
+            setUsersError(null);
+          }).catch(err => {
+            if (retryCount < 2 && (err.code === 'permission-denied' || err.message.includes('permission'))) {
+              // Retry after a short delay to allow permissions to propagate
+              setTimeout(() => fetchUsers(retryCount + 1), 1000);
+            } else {
+              console.error("Error fetching users", err);
+              setUsersError(err.message || 'Erro desconhecido');
+              setIsLoadingUsers(false);
+            }
+          });
+        };
+        
+        fetchUsers();
       } else if (activeTab === 'fix') {
         fetchFixData();
       } else if (activeTab === 'bot') {
@@ -225,7 +239,7 @@ export default function AdminPage() {
       }
       const ai = new GoogleGenAI({ apiKey });
       await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: 'ping',
         config: { maxOutputTokens: 1 }
       });
@@ -1035,16 +1049,14 @@ export default function AdminPage() {
                 <button 
                   onClick={() => {
                     setIsLoadingUsers(true);
-                    // Force a re-fetch by temporarily setting activeTab to something else and back, 
-                    // or just fetching directly. Since it's an onSnapshot, we can just do a getDocs to force update the list.
-                    import('firebase/firestore').then(({ getDocs, collection }) => {
-                      getDocs(collection(db, 'users')).then(snapshot => {
-                        setUsersList(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
-                        setIsLoadingUsers(false);
-                      }).catch(err => {
-                        console.error(err);
-                        setIsLoadingUsers(false);
-                      });
+                    setUsersError(null);
+                    getDocs(collection(db, 'users')).then(snapshot => {
+                      setUsersList(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+                      setIsLoadingUsers(false);
+                    }).catch(err => {
+                      console.error(err);
+                      setUsersError(err.message || 'Erro desconhecido');
+                      setIsLoadingUsers(false);
                     });
                   }}
                   className="p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/10 rounded-lg transition-colors border border-black/10 dark:border-white/10"
@@ -1053,6 +1065,11 @@ export default function AdminPage() {
                   <RotateCcw className={`w-4 h-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
                 </button>
               </div>
+              {usersError && (
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-sm">
+                  Erro ao carregar usuários: {usersError}
+                </div>
+              )}
               {isLoadingUsers ? (
                 <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-400 dark:text-zinc-500" /></div>
               ) : (
