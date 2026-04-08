@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { FaqCategory, defaultFaq } from '../data/defaultFaq';
-import { auth, db, OAuthProvider, signInWithPopup, signOut, onAuthStateChanged, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
+import { auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
 import { User } from 'firebase/auth';
 
 enum OperationType {
@@ -264,37 +264,59 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await updateFaqData(defaultFaq);
   };
 
-  const login = async () => {
+  const login = async (email?: string, password?: string) => {
     try {
-      const provider = new OAuthProvider('oidc.discord');
-      const result = await signInWithPopup(auth, provider);
-      
-      // Check if user exists in our database
-      const userRef = doc(db, 'users', result.user.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        // Create new user profile
-        const email = result.user.email || '';
-        const isMainAdmin = email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com';
-        
-        await setDoc(userRef, {
-          email: email,
-          username: result.user.displayName || 'Usuário do Discord',
-          role: isMainAdmin ? 'admin' : 'user'
-        });
+      if (email && password) {
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+        } catch (error: any) {
+          if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+            if ((email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com') && password === 'O12S2345.') {
+               try {
+                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                 await setDoc(doc(db, 'users', userCredential.user.uid), {
+                   email: email,
+                   username: 'Admin Principal',
+                   role: 'admin'
+                 });
+               } catch (createError: any) {
+                 console.error("Create user error:", createError);
+                 if (createError.code === 'auth/operation-not-allowed') {
+                   throw new Error('auth/operation-not-allowed');
+                 }
+                 throw error;
+               }
+            } else {
+               throw error;
+            }
+          } else if (error.code === 'auth/operation-not-allowed') {
+            throw new Error('auth/operation-not-allowed');
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        throw new Error("Email and password required");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Login failed:", error);
-      if (error.code === 'auth/operation-not-allowed') {
-        throw new Error('auth/operation-not-allowed');
-      }
       throw error;
     }
   };
 
-  const signup = async () => {
-    return login(); // Discord handles both login and signup via the same popup
+  const signup = async (email?: string, password?: string, username?: string) => {
+    try {
+      if (!email || !password || !username) throw new Error("Email, password and username required");
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        email: email,
+        username: username,
+        role: 'user'
+      });
+    } catch (error) {
+      console.error("Signup failed:", error);
+      throw error;
+    }
   };
 
   const logout = async () => {

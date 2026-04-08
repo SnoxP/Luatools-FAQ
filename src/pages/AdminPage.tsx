@@ -487,14 +487,22 @@ export default function AdminPage() {
     e.preventDefault();
     setLoginError('');
     try {
-      await login();
+      if (isLoginMode) {
+        await login(email, password);
+      } else {
+        await signup(email, password, username);
+      }
       // Note: The redirect is handled by a useEffect watching the user/isAdmin state
     } catch (err: any) {
       console.error("Auth failed", err);
       if (err.message === 'auth/operation-not-allowed') {
-        setLoginError('O login com Discord não está ativado no Firebase. Por favor, ative-o no console do Firebase.');
+        setLoginError('O login com E-mail e Senha não está ativado no Firebase. Por favor, ative-o no console do Firebase.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setLoginError('Este e-mail já está em uso.');
+      } else if (err.code === 'auth/weak-password') {
+        setLoginError('A senha deve ter pelo menos 6 caracteres.');
       } else {
-        setLoginError('Erro ao fazer login com o Discord.');
+        setLoginError(isLoginMode ? 'Credenciais inválidas.' : 'Erro ao criar conta.');
       }
     }
   };
@@ -690,20 +698,63 @@ export default function AdminPage() {
       <div className="min-h-full flex items-center justify-center px-4 bg-zinc-50 dark:bg-[#212121] transition-colors duration-200">
         <div className="max-w-md w-full bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-8 shadow-sm text-center transition-colors duration-200">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-2">Acesso ao Painel</h2>
-            <p className="text-zinc-600 dark:text-zinc-400 text-sm">Faça login com sua conta do Discord para continuar.</p>
+            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-2">{isLoginMode ? t('admin.loginTitle') : t('admin.signupTitle')}</h2>
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.loginSubtitle')}</p>
+            <p className="text-zinc-500 dark:text-zinc-300 text-sm mt-2">{t('admin.loginHelper')}</p>
           </div>
           
-          <div className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-4">
+            {!isLoginMode && (
+              <div>
+                <input
+                  type="text"
+                  placeholder="Nome de usuário"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                  required
+                />
+              </div>
+            )}
+            <div>
+              <input
+                type="email"
+                placeholder={t('admin.email')}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                required
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                placeholder={t('admin.password')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                required
+                minLength={6}
+              />
+            </div>
             {loginError && <p className="text-red-500 dark:text-red-400 text-sm text-left">{loginError}</p>}
             <button
-              onClick={handleAuth}
-              className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-3"
+              type="submit"
+              className="w-full bg-zinc-900 dark:bg-white text-white dark:text-black font-medium rounded-xl px-4 py-3 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 127.14 96.36" fill="currentColor">
-                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.36,46,96.26,53,91.21,65.69,84.69,65.69Z"/>
-              </svg>
-              Login com Discord
+              {isLoginMode ? t('admin.loginBtn') : t('admin.signupBtn')}
+            </button>
+          </form>
+          
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => {
+                setIsLoginMode(!isLoginMode);
+                setLoginError('');
+              }}
+              className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-sm transition-colors"
+            >
+              {isLoginMode ? t('admin.noAccount') : t('admin.hasAccount')}
             </button>
           </div>
         </div>
