@@ -1087,7 +1087,7 @@ export default function AdminPage() {
                         <tr key={u.id} className="border-b border-black/5 dark:border-white/5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
                           <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">
                             <div className="font-medium">{u.username || 'Sem nome'}</div>
-                            <div className="text-xs text-zinc-500">{u.email}</div>
+                            {u.role !== 'admin' && <div className="text-xs text-zinc-500">{u.email}</div>}
                           </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-zinc-900 dark:bg-white/10 text-white dark:text-white border border-transparent dark:border-white/20' : 'bg-zinc-100 dark:bg-[#212121] text-zinc-600 dark:text-zinc-400 border border-black/10 dark:border-white/10'}`}>
