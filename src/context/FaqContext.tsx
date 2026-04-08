@@ -89,9 +89,13 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(currentUser);
       
       if (currentUser) {
+        const discordId = currentUser.providerData.find(p => p.providerId === 'oidc.discord')?.uid || '';
+        const email = currentUser.email || '';
+        const isMainAdmin = email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com' || discordId === '542832142745337867';
+
         // Check if user is admin based on Firestore role
         try {
-          unsubscribeUser = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
+          unsubscribeUser = onSnapshot(doc(db, 'users', currentUser.uid), async (userDoc) => {
             if (userDoc.exists()) {
               const data = userDoc.data();
               if (data.isBanned) {
@@ -105,11 +109,21 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 });
                 return;
               }
+              
+              // Auto-promote to admin if they are a main admin but their role is not admin
+              if (isMainAdmin && data.role !== 'admin') {
+                try {
+                  await setDoc(doc(db, 'users', currentUser.uid), { role: 'admin' }, { merge: true });
+                } catch (e) {
+                  console.error("Failed to auto-promote admin", e);
+                }
+              }
+              
               setUserData(data);
-              setIsAdmin(data.role === 'admin');
+              setIsAdmin(data.role === 'admin' || isMainAdmin);
             } else {
               setUserData(null);
-              setIsAdmin(false);
+              setIsAdmin(isMainAdmin);
             }
             setIsAuthReady(true);
           }, (error) => {
