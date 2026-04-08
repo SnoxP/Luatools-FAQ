@@ -220,7 +220,7 @@ export default function Home() {
       });
 
       const responseStream = await ai.models.generateContentStream({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.5-flash',
         contents,
         config: {
           systemInstruction,
