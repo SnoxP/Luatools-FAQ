@@ -273,15 +273,18 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const discordId = result.user.providerData.find(p => p.providerId === 'oidc.discord')?.uid || '';
       let discordUsername = result.user.displayName || 'Usuário do Discord';
       
-      // Remove the ID from the username if it was already appended in a previous login
-      if (discordId && discordUsername.endsWith(`(${discordId})`)) {
+      // If the current display name is just the ID, we might not have the real username, but we'll try to extract it if it's different
+      if (discordId && discordUsername === discordId) {
+        // Username is already just the ID, we can't get the real username from here if it was overwritten
+        // We'll keep it as is or try to get it from the database later
+      } else if (discordId && discordUsername.endsWith(`(${discordId})`)) {
         discordUsername = discordUsername.replace(` (${discordId})`, '').trim();
       }
       
-      // Update Firebase Auth profile to show Username (Discord ID)
-      if (discordId && !result.user.displayName?.includes(`(${discordId})`)) {
+      // Update Firebase Auth profile to show ONLY the Discord ID
+      if (discordId && result.user.displayName !== discordId) {
         await updateProfile(result.user, {
-          displayName: `${discordUsername} (${discordId})`
+          displayName: discordId
         }).catch(err => console.error("Failed to update profile", err));
       }
 

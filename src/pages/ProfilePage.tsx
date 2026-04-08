@@ -28,11 +28,21 @@ export default function ProfilePage() {
       if (!user) return;
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
+        
+        // Extract from provider data as fallback
+        const providerDiscordId = user.providerData.find(p => p.providerId === 'oidc.discord')?.uid || '';
+        
         if (userDoc.exists()) {
           const data = userDoc.data();
           if (data.username) setUsername(data.username);
-          if (data.discordId) setDiscordId(data.discordId);
+          if (data.discordId) {
+            setDiscordId(data.discordId);
+          } else if (providerDiscordId) {
+            setDiscordId(providerDiscordId);
+          }
           if (data.bio) setBio(data.bio);
+        } else if (providerDiscordId) {
+          setDiscordId(providerDiscordId);
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -135,10 +145,10 @@ export default function ProfilePage() {
                 <input
                   type="text"
                   value={discordId}
-                  onChange={(e) => setDiscordId(e.target.value)}
-                  placeholder="Ex: 123456789012345678"
-                  className="w-full bg-white dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors text-[15px]"
+                  disabled
+                  className="w-full bg-zinc-50 dark:bg-[#212121]/50 border border-black/5 dark:border-white/5 rounded-xl px-4 py-3 text-zinc-500 cursor-not-allowed text-[15px]"
                 />
+                <p className="text-xs text-zinc-500 mt-2">O ID do Discord não pode ser alterado.</p>
               </div>
 
               <div className="md:col-span-2">
