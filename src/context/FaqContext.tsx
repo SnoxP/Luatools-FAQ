@@ -62,8 +62,8 @@ interface FaqContextType {
   userData: any | null;
   isAdmin: boolean;
   isAuthReady: boolean;
-  login: (email?: string, password?: string) => Promise<void>;
-  signup: (email?: string, password?: string, username?: string) => Promise<void>;
+  login: () => Promise<void>;
+  signup: () => Promise<void>;
   logout: () => Promise<void>;
 }
 

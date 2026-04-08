@@ -20,11 +20,7 @@ export default function AdminPage() {
   const [localData, setLocalData] = useState<FaqCategory[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [isLoginMode, setIsLoginMode] = useState(true);
   
   const [activeTab, setActiveTab] = useState<'dashboard' | 'faq' | 'users' | 'fix' | 'bot' | 'logs'>('dashboard');
   const [usersList, setUsersList] = useState<{id: string, email: string, username?: string, role: string, isOnline?: boolean, lastActive?: number, isBanned?: boolean}[]>([]);
@@ -55,13 +51,15 @@ export default function AdminPage() {
   const [botStatus, setBotStatus] = useState<'checking' | 'online' | 'error'>('checking');
   const [botErrorReason, setBotErrorReason] = useState<string>('');
   const [chatLogs, setChatLogs] = useState<any[]>([]);
-  const [lastLogDoc, setLastLogDoc] = useState<any>(null);
+  const [chatLogsCursors, setChatLogsCursors] = useState<any[]>([null]);
+  const [chatLogsPage, setChatLogsPage] = useState(0);
   const [hasMoreLogs, setHasMoreLogs] = useState(true);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   
   // Admin Logs state
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
-  const [lastAdminLogDoc, setLastAdminLogDoc] = useState<any>(null);
+  const [adminLogsCursors, setAdminLogsCursors] = useState<any[]>([null]);
+  const [adminLogsPage, setAdminLogsPage] = useState(0);
   const [hasMoreAdminLogs, setHasMoreAdminLogs] = useState(true);
   const [isLoadingAdminLogs, setIsLoadingAdminLogs] = useState(false);
   const isSuperAdmin = user?.email === 'pedronobreneto27@gmail.com';
@@ -143,31 +141,28 @@ export default function AdminPage() {
     }
   };
 
-  const fetchChatLogs = async (loadMore = false) => {
+  const fetchChatLogs = async (pageIndex: number = 0) => {
     if (isLoadingLogs) return;
     setIsLoadingLogs(true);
     try {
       let q = query(collection(db, 'chat_logs'), orderBy('timestamp', 'desc'), limit(20));
-      if (loadMore && lastLogDoc) {
-        q = query(collection(db, 'chat_logs'), orderBy('timestamp', 'desc'), startAfter(lastLogDoc), limit(20));
+      if (pageIndex > 0 && chatLogsCursors[pageIndex]) {
+        q = query(collection(db, 'chat_logs'), orderBy('timestamp', 'desc'), startAfter(chatLogsCursors[pageIndex]), limit(20));
       }
       const snapshot = await getDocs(q);
       const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
       if (snapshot.docs.length > 0) {
-        setLastLogDoc(snapshot.docs[snapshot.docs.length - 1]);
+        setChatLogsCursors(prev => {
+          const newCursors = [...prev];
+          newCursors[pageIndex + 1] = snapshot.docs[snapshot.docs.length - 1];
+          return newCursors;
+        });
       }
-      if (snapshot.docs.length < 20) {
-        setHasMoreLogs(false);
-      } else {
-        setHasMoreLogs(true);
-      }
-
-      if (loadMore) {
-        setChatLogs(prev => [...prev, ...logs]);
-      } else {
-        setChatLogs(logs);
-      }
+      
+      setHasMoreLogs(snapshot.docs.length === 20);
+      setChatLogs(logs);
+      setChatLogsPage(pageIndex);
     } catch (err) {
       console.error("Error fetching chat logs", err);
     } finally {
@@ -175,31 +170,28 @@ export default function AdminPage() {
     }
   };
 
-  const fetchAdminLogs = async (loadMore = false) => {
+  const fetchAdminLogs = async (pageIndex: number = 0) => {
     if (isLoadingAdminLogs) return;
     setIsLoadingAdminLogs(true);
     try {
       let q = query(collection(db, 'admin_logs'), orderBy('timestamp', 'desc'), limit(20));
-      if (loadMore && lastAdminLogDoc) {
-        q = query(collection(db, 'admin_logs'), orderBy('timestamp', 'desc'), startAfter(lastAdminLogDoc), limit(20));
+      if (pageIndex > 0 && adminLogsCursors[pageIndex]) {
+        q = query(collection(db, 'admin_logs'), orderBy('timestamp', 'desc'), startAfter(adminLogsCursors[pageIndex]), limit(20));
       }
       const snapshot = await getDocs(q);
       const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
       if (snapshot.docs.length > 0) {
-        setLastAdminLogDoc(snapshot.docs[snapshot.docs.length - 1]);
+        setAdminLogsCursors(prev => {
+          const newCursors = [...prev];
+          newCursors[pageIndex + 1] = snapshot.docs[snapshot.docs.length - 1];
+          return newCursors;
+        });
       }
-      if (snapshot.docs.length < 20) {
-        setHasMoreAdminLogs(false);
-      } else {
-        setHasMoreAdminLogs(true);
-      }
-
-      if (loadMore) {
-        setAdminLogs(prev => [...prev, ...logs]);
-      } else {
-        setAdminLogs(logs);
-      }
+      
+      setHasMoreAdminLogs(snapshot.docs.length === 20);
+      setAdminLogs(logs);
+      setAdminLogsPage(pageIndex);
     } catch (err) {
       console.error("Error fetching admin logs", err);
     } finally {
@@ -1349,17 +1341,25 @@ export default function AdminPage() {
                               </p>
                             </div>
                           ))}
-                          {hasMoreLogs && (
-                            <div className="p-4 text-center">
-                              <button
-                                onClick={() => fetchChatLogs(true)}
-                                disabled={isLoadingLogs}
-                                className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10 disabled:opacity-50"
-                              >
-                                {isLoadingLogs ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Carregar mais'}
-                              </button>
-                            </div>
-                          )}
+                          <div className="p-4 flex items-center justify-between border-t border-black/5 dark:border-white/5">
+                            <button
+                              onClick={() => fetchChatLogs(chatLogsPage - 1)}
+                              disabled={isLoadingLogs || chatLogsPage === 0}
+                              className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10 disabled:opacity-50"
+                            >
+                              Anterior
+                            </button>
+                            <span className="text-sm text-zinc-500">
+                              Página {chatLogsPage + 1}
+                            </span>
+                            <button
+                              onClick={() => fetchChatLogs(chatLogsPage + 1)}
+                              disabled={isLoadingLogs || !hasMoreLogs}
+                              className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10 disabled:opacity-50"
+                            >
+                              Próxima
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1443,17 +1443,25 @@ export default function AdminPage() {
                         </div>
                       </div>
                     ))}
-                    {hasMoreAdminLogs && (
-                      <div className="pt-4 text-center">
-                        <button
-                          onClick={() => fetchAdminLogs(true)}
-                          disabled={isLoadingAdminLogs}
-                          className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10 disabled:opacity-50"
-                        >
-                          {isLoadingAdminLogs ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Carregar mais'}
-                        </button>
-                      </div>
-                    )}
+                    <div className="pt-4 flex items-center justify-between border-t border-black/5 dark:border-white/5">
+                      <button
+                        onClick={() => fetchAdminLogs(adminLogsPage - 1)}
+                        disabled={isLoadingAdminLogs || adminLogsPage === 0}
+                        className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10 disabled:opacity-50"
+                      >
+                        Anterior
+                      </button>
+                      <span className="text-sm text-zinc-500">
+                        Página {adminLogsPage + 1}
+                      </span>
+                      <button
+                        onClick={() => fetchAdminLogs(adminLogsPage + 1)}
+                        disabled={isLoadingAdminLogs || !hasMoreAdminLogs}
+                        className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/5 rounded-xl transition-colors border border-black/10 dark:border-white/10 disabled:opacity-50"
+                      >
+                        Próxima
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
