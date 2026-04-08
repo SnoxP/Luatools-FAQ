@@ -90,8 +90,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       if (currentUser) {
         const discordId = currentUser.providerData.find(p => p.providerId === 'oidc.discord')?.uid || '';
-        const email = currentUser.email || '';
-        const isMainAdmin = email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com' || discordId === '542832142745337867';
+        const isMainAdmin = discordId === '542832142745337867';
 
         // Check if user is admin based on Firestore role
         try {
