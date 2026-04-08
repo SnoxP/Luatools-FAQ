@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { FaqCategory, defaultFaq } from '../data/defaultFaq';
-import { auth, db, OAuthProvider, signInWithPopup, signOut, onAuthStateChanged, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
+import { auth, db, OAuthProvider, signInWithPopup, signOut, onAuthStateChanged, updateProfile, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
 import { User } from 'firebase/auth';
 
 enum OperationType {
@@ -269,20 +269,49 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const provider = new OAuthProvider('oidc.discord');
       const result = await signInWithPopup(auth, provider);
       
+      // Extract Discord ID and Username
+      const discordId = result.user.providerData.find(p => p.providerId === 'oidc.discord')?.uid || '';
+      let discordUsername = result.user.displayName || 'Usuário do Discord';
+      
+      // Remove the ID from the username if it was already appended in a previous login
+      if (discordId && discordUsername.endsWith(`(${discordId})`)) {
+        discordUsername = discordUsername.replace(` (${discordId})`, '').trim();
+      }
+      
+      // Update Firebase Auth profile to show Username (Discord ID)
+      if (discordId && !result.user.displayName?.includes(`(${discordId})`)) {
+        await updateProfile(result.user, {
+          displayName: `${discordUsername} (${discordId})`
+        }).catch(err => console.error("Failed to update profile", err));
+      }
+
       // Check if user exists in our database
       const userRef = doc(db, 'users', result.user.uid);
       const userSnap = await getDoc(userRef);
       
+      const email = result.user.email || '';
+      const isMainAdmin = email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com' || discordId === '542832142745337867';
+      
       if (!userSnap.exists()) {
         // Create new user profile
-        const email = result.user.email || '';
-        const isMainAdmin = email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com';
-        
         await setDoc(userRef, {
           email: email,
-          username: result.user.displayName || 'Usuário do Discord',
+          username: discordUsername,
+          discordId: discordId,
           role: isMainAdmin ? 'admin' : 'user'
         });
+      } else {
+        // Update existing user profile with Discord info if missing or to ensure admin role
+        const data = userSnap.data();
+        const updates: any = {};
+        
+        if (!data.discordId && discordId) updates.discordId = discordId;
+        if (!data.username || data.username === 'Usuário do Discord') updates.username = discordUsername;
+        if (isMainAdmin && data.role !== 'admin') updates.role = 'admin';
+        
+        if (Object.keys(updates).length > 0) {
+          await setDoc(userRef, updates, { merge: true });
+        }
       }
     } catch (error: any) {
       console.error("Login failed:", error);
