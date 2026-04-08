@@ -225,7 +225,7 @@ export default function AdminPage() {
       }
       const ai = new GoogleGenAI({ apiKey });
       await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-1.5-flash',
         contents: 'ping',
         config: { maxOutputTokens: 1 }
       });
@@ -1030,7 +1030,29 @@ export default function AdminPage() {
         ) : activeTab === 'users' ? (
           <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
             <div className="p-6">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">{t('admin.manageUsers')}</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">{t('admin.manageUsers')}</h2>
+                <button 
+                  onClick={() => {
+                    setIsLoadingUsers(true);
+                    // Force a re-fetch by temporarily setting activeTab to something else and back, 
+                    // or just fetching directly. Since it's an onSnapshot, we can just do a getDocs to force update the list.
+                    import('firebase/firestore').then(({ getDocs, collection }) => {
+                      getDocs(collection(db, 'users')).then(snapshot => {
+                        setUsersList(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+                        setIsLoadingUsers(false);
+                      }).catch(err => {
+                        console.error(err);
+                        setIsLoadingUsers(false);
+                      });
+                    });
+                  }}
+                  className="p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/10 rounded-lg transition-colors border border-black/10 dark:border-white/10"
+                  title="Recarregar lista"
+                >
+                  <RotateCcw className={`w-4 h-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
               {isLoadingUsers ? (
                 <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-zinc-400 dark:text-zinc-500" /></div>
               ) : (
@@ -1050,7 +1072,7 @@ export default function AdminPage() {
                         return (
                         <tr key={u.id} className="border-b border-black/5 dark:border-white/5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
                           <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">
-                            <div className="font-medium">{u.username || 'Sem nome'}</div>
+                            <div className="font-medium">{u.username && u.username !== 'Usuário do Discord' ? u.username : (u.discordId || 'Sem nome')}</div>
                             {u.role !== 'admin' && <div className="text-xs text-zinc-500">{u.email}</div>}
                           </td>
                           <td className="py-3 px-4">

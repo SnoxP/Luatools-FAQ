@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, Loader2, AlertCircle, Image as ImageIcon, X, Plus, Menu, MessageSquare, Trash2, PanelLeft } from 'lucide-react';
+import { Send, Bot, Loader2, AlertCircle, Image as ImageIcon, X, Plus, Menu, MessageSquare, Trash2, PanelLeft, Cpu } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { useFaq } from '../context/FaqContext';
 import { useSettings } from '../context/SettingsContext';
@@ -33,9 +33,22 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isWhyLoginOpen, setIsWhyLoginOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string } | null>(null);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(event.target as Node)) {
+        setShowAttachmentMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     chatRef.current = null;
@@ -220,7 +233,7 @@ export default function Home() {
       });
 
       const responseStream = await ai.models.generateContentStream({
-        model: 'gemini-2.0-flash',
+        model: selectedModel,
         contents,
         config: {
           systemInstruction,
@@ -406,13 +419,82 @@ export default function Home() {
                 ref={fileInputRef}
                 className="hidden"
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/5 shrink-0"
-              >
-                <ImageIcon className="w-5 h-5" />
-              </button>
+              <div className="relative" ref={attachmentMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                  className={`p-3 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors rounded-full hover:bg-black/5 dark:hover:bg-white/5 shrink-0 ${showAttachmentMenu ? 'bg-black/5 dark:bg-white/5 text-zinc-900 dark:text-zinc-200' : ''}`}
+                >
+                  <Plus className={`w-5 h-5 transition-transform duration-200 ${showAttachmentMenu ? 'rotate-45' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {showAttachmentMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-xl shadow-lg overflow-hidden z-50"
+                    >
+                      <div className="p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            fileInputRef.current?.click();
+                            setShowAttachmentMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0">
+                            <ImageIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">Adicionar imagem</span>
+                            <span className="text-[10px] text-zinc-500">Enviar foto para a IA</span>
+                          </div>
+                        </button>
+
+                        <div className="h-px bg-black/5 dark:bg-white/5 my-1 mx-2" />
+
+                        <div className="px-3 py-2">
+                          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Modelo da IA</span>
+                          <div className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedModel('gemini-1.5-flash');
+                                setShowAttachmentMenu(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${selectedModel === 'gemini-1.5-flash' ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white font-medium' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Cpu className="w-4 h-4" />
+                                <span>1.5 Flash</span>
+                              </div>
+                              {selectedModel === 'gemini-1.5-flash' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedModel('gemini-2.0-flash');
+                                setShowAttachmentMenu(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${selectedModel === 'gemini-2.0-flash' ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white font-medium' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Cpu className="w-4 h-4" />
+                                <span>2.0 Flash</span>
+                              </div>
+                              {selectedModel === 'gemini-2.0-flash' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
