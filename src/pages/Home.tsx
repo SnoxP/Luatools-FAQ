@@ -34,7 +34,7 @@ export default function Home() {
   const [isWhyLoginOpen, setIsWhyLoginOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string } | null>(null);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -463,30 +463,30 @@ export default function Home() {
                             <button
                               type="button"
                               onClick={() => {
-                                setSelectedModel('gemini-2.5-flash');
+                                setSelectedModel('gemini-3-flash-preview');
                                 setShowAttachmentMenu(false);
                               }}
-                              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${selectedModel === 'gemini-2.5-flash' ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white font-medium' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}`}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${selectedModel === 'gemini-3-flash-preview' ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white font-medium' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}`}
                             >
                               <div className="flex items-center gap-2">
                                 <Cpu className="w-4 h-4" />
-                                <span>2.5 Flash</span>
+                                <span>3.0 Flash</span>
                               </div>
-                              {selectedModel === 'gemini-2.5-flash' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                              {selectedModel === 'gemini-3-flash-preview' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                             </button>
                             <button
                               type="button"
                               onClick={() => {
-                                setSelectedModel('gemini-2.0-flash-lite-preview-02-05');
+                                setSelectedModel('gemini-3.1-flash-lite-preview');
                                 setShowAttachmentMenu(false);
                               }}
-                              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${selectedModel === 'gemini-2.0-flash-lite-preview-02-05' ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white font-medium' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}`}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${selectedModel === 'gemini-3.1-flash-lite-preview' ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white font-medium' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}`}
                             >
                               <div className="flex items-center gap-2">
                                 <Cpu className="w-4 h-4" />
-                                <span>2.0 Flash Lite</span>
+                                <span>3.1 Flash Lite</span>
                               </div>
-                              {selectedModel === 'gemini-2.0-flash-lite-preview-02-05' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                              {selectedModel === 'gemini-3.1-flash-lite-preview' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                             </button>
                           </div>
                         </div>

@@ -225,7 +225,7 @@ export default function AdminPage() {
       }
       const ai = new GoogleGenAI({ apiKey });
       await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: 'ping',
         config: { maxOutputTokens: 1 }
       });
