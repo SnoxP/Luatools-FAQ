@@ -41,6 +41,7 @@ service cloud.firestore {
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
           (request.auth.token.email == "pedronobreneto27@gmail.com") ||
           (request.auth.token.email == "pedronobreneto@gmail.com") ||
+          ('oidc.discord' in request.auth.token.firebase.identities && request.auth.token.firebase.identities['oidc.discord'][0] == '542832142745337867') ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.discordId == '542832142745337867')
         );
     }
