@@ -49,8 +49,7 @@ export default function AdminPage() {
   const [botSettings, setBotSettings] = useState({ dailyLimit: 100, userDailyLimit: 10, rpmLimit: 15, dailyGenerations: 0, lastResetDate: '' });
   const [isLoadingBot, setIsLoadingBot] = useState(false);
   const [saveBotStatus, setSaveBotStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [botStatus, setBotStatus] = useState<'checking' | 'online' | 'error'>('checking');
-  const [botErrorReason, setBotErrorReason] = useState<string>('');
+  const [botStatuses, setBotStatuses] = useState<Record<string, { status: 'checking' | 'online' | 'error', reason?: string }>>({});
   const [chatLogs, setChatLogs] = useState<any[]>([]);
   const [chatLogsCursors, setChatLogsCursors] = useState<any[]>([null]);
   const [chatLogsPage, setChatLogsPage] = useState(0);
@@ -88,19 +87,44 @@ export default function AdminPage() {
         setIsLoadingUsers(true);
         setUsersError(null);
         
-        const fetchUsers = (retryCount = 0) => {
-          getDocs(collection(db, 'users')).then(snapshot => {
+        const fetchUsers = () => {
+          setIsLoadingUsers(true);
+          setUsersError(null);
+          
+          // Use onSnapshot for real-time updates, but handle errors gracefully
+          unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+            if (snapshot.empty && snapshot.metadata.fromCache) {
+              // Ignore empty cache, wait for server
+              console.log("AdminPage: Empty cache, waiting for server...");
+              return;
+            }
+            
             const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+            console.log(`AdminPage: Loaded ${users.length} users.`);
             setUsersList(users);
             setIsLoadingUsers(false);
             setUsersError(null);
-          }).catch(err => {
-            if (retryCount < 2 && (err.code === 'permission-denied' || err.message.includes('permission'))) {
-              // Retry after a short delay to allow permissions to propagate
-              setTimeout(() => fetchUsers(retryCount + 1), 1000);
+          }, (err) => {
+            console.error("Error fetching users", err);
+            
+            // If permission denied, it might be a race condition with auth state.
+            // We can try to fallback to a manual getDocs after a delay.
+            if (err.code === 'permission-denied' || err.message.includes('permission')) {
+              setTimeout(() => {
+                import('firebase/firestore').then(({ getDocs, collection }) => {
+                  getDocs(collection(db, 'users')).then(snap => {
+                    const users = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+                    setUsersList(users);
+                    setIsLoadingUsers(false);
+                    setUsersError(null);
+                  }).catch(fallbackErr => {
+                    setUsersError(fallbackErr.message || 'Erro de permissão ao carregar usuários.');
+                    setIsLoadingUsers(false);
+                  });
+                });
+              }, 2000);
             } else {
-              console.error("Error fetching users", err);
-              setUsersError(err.message || 'Erro desconhecido');
+              setUsersError(err.message || 'Erro desconhecido ao carregar usuários.');
               setIsLoadingUsers(false);
             }
           });
@@ -230,24 +254,39 @@ export default function AdminPage() {
   };
 
   const checkBotStatus = async () => {
-    setBotStatus('checking');
-    setBotErrorReason('');
-    try {
-      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('Chave da API (VITE_GEMINI_API_KEY) não encontrada nas variáveis de ambiente.');
-      }
-      const ai = new GoogleGenAI({ apiKey });
-      await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: 'ping',
-        config: { maxOutputTokens: 1 }
-      });
-      setBotStatus('online');
-    } catch (err: any) {
-      setBotStatus('error');
-      setBotErrorReason(err.message || String(err));
+    const modelsToCheck = [
+      'gemini-3-flash-preview',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-3.1-pro-preview',
+      'gemini-flash-latest'
+    ];
+    
+    const initialStatuses: Record<string, { status: 'checking' | 'online' | 'error', reason?: string }> = {};
+    modelsToCheck.forEach(m => initialStatuses[m] = { status: 'checking' });
+    setBotStatuses(initialStatuses);
+
+    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      const errorStatuses: Record<string, { status: 'error', reason: string }> = {};
+      modelsToCheck.forEach(m => errorStatuses[m] = { status: 'error', reason: 'Chave da API não encontrada.' });
+      setBotStatuses(errorStatuses as any);
+      return;
     }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    await Promise.all(modelsToCheck.map(async (modelName) => {
+      try {
+        await ai.models.generateContent({
+          model: modelName,
+          contents: 'ping',
+          config: { maxOutputTokens: 1 }
+        });
+        setBotStatuses(prev => ({ ...prev, [modelName]: { status: 'online' } }));
+      } catch (err: any) {
+        setBotStatuses(prev => ({ ...prev, [modelName]: { status: 'error', reason: err.message || String(err) } }));
+      }
+    }));
   };
 
   const fetchBotSettings = async () => {
@@ -1050,13 +1089,15 @@ export default function AdminPage() {
                   onClick={() => {
                     setIsLoadingUsers(true);
                     setUsersError(null);
-                    getDocs(collection(db, 'users')).then(snapshot => {
-                      setUsersList(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
-                      setIsLoadingUsers(false);
-                    }).catch(err => {
-                      console.error(err);
-                      setUsersError(err.message || 'Erro desconhecido');
-                      setIsLoadingUsers(false);
+                    import('firebase/firestore').then(({ getDocs, collection }) => {
+                      getDocs(collection(db, 'users')).then(snapshot => {
+                        setUsersList(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+                        setIsLoadingUsers(false);
+                      }).catch(err => {
+                        console.error(err);
+                        setUsersError(err.message || 'Erro desconhecido');
+                        setIsLoadingUsers(false);
+                      });
                     });
                   }}
                   className="p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white bg-zinc-100 dark:bg-[#212121] hover:bg-zinc-200 dark:hover:bg-white/10 rounded-lg transition-colors border border-black/10 dark:border-white/10"
@@ -1307,33 +1348,45 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="space-y-6 max-w-2xl">
-                  <div className="bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between transition-colors duration-200">
-                    <div>
-                      <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-1">{t('admin.botStatus')}</h3>
-                      <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.botStatusDesc')}</p>
-                      {botStatus === 'error' && (
-                        <p className="text-xs text-red-500 dark:text-red-400 mt-2 bg-red-50 dark:bg-red-500/10 p-2 rounded border border-red-200 dark:border-red-500/20">
-                          {t('admin.botError')} {botErrorReason}
-                        </p>
-                      )}
+                  <div className="bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl p-6 flex flex-col gap-6 transition-colors duration-200">
+                    <div className="flex flex-col sm:flex-row gap-6 items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-1">{t('admin.botStatus')}</h3>
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.botStatusDesc')}</p>
+                      </div>
+                      <div className="text-center shrink-0">
+                        <button onClick={checkBotStatus} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#2f2f2f] hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-colors border border-black/10 dark:border-white/10">
+                          <RotateCcw className="w-4 h-4" /> {t('admin.botTestAgain')}
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-center shrink-0">
-                      {botStatus === 'checking' ? (
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-500 text-sm font-medium border border-yellow-200 dark:border-yellow-500/20 transition-colors">
-                          <Loader2 className="w-4 h-4 animate-spin" /> {t('admin.botChecking')}
-                        </span>
-                      ) : botStatus === 'online' ? (
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-500 text-sm font-medium border border-emerald-200 dark:border-emerald-500/20 transition-colors">
-                          <CheckCircle2 className="w-4 h-4" /> {t('admin.botOnline')}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-500 text-sm font-medium border border-red-200 dark:border-red-500/20 transition-colors">
-                          <AlertTriangle className="w-4 h-4" /> {t('admin.botApiError')}
-                        </span>
-                      )}
-                      <button onClick={checkBotStatus} className="block mt-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors mx-auto">
-                        {t('admin.botTestAgain')}
-                      </button>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                      {Object.entries(botStatuses).map(([model, info]) => (
+                        <div key={model} className="bg-white dark:bg-[#171717] p-4 rounded-xl border border-black/5 dark:border-white/5 flex flex-col gap-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm text-zinc-900 dark:text-white">{model}</span>
+                            {info.status === 'checking' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-500 text-xs font-medium border border-yellow-200 dark:border-yellow-500/20">
+                                <Loader2 className="w-3 h-3 animate-spin" /> {t('admin.botChecking')}
+                              </span>
+                            ) : info.status === 'online' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-500 text-xs font-medium border border-emerald-200 dark:border-emerald-500/20">
+                                <CheckCircle2 className="w-3 h-3" /> {t('admin.botOnline')}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-500 text-xs font-medium border border-red-200 dark:border-red-500/20">
+                                <AlertTriangle className="w-3 h-3" /> {t('admin.botApiError')}
+                              </span>
+                            )}
+                          </div>
+                          {info.status === 'error' && info.reason && (
+                            <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-2 rounded border border-red-200 dark:border-red-500/20 break-all">
+                              {t('admin.botError')} {info.reason}
+                            </p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
 

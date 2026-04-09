@@ -275,7 +275,7 @@ export default function Home() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'model',
-        text: `⚠️ Erro: ${error.message || 'Desculpe, ocorreu um erro ao conectar com a IA.'}`
+        text: `⚠️ Ocorreu um erro na IA. Por favor, fale com o Snox para consertar.\n\nDetalhes técnicos: ${error.message || 'Erro desconhecido'}`
       }]);
     } finally {
       setIsLoading(false);
