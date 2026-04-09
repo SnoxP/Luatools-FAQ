@@ -76,7 +76,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
-  // Check for custom token in URL
+  // Check for custom token in URL (fallback if popup blocked)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const customToken = urlParams.get('auth_token');
@@ -87,6 +87,24 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         signInWithCustomToken(auth, customToken).catch(console.error);
       });
     }
+  }, []);
+
+  // Listen for success message from popup
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Validate origin is from AI Studio preview or localhost
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+        return;
+      }
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.token) {
+        import('firebase/auth').then(({ signInWithCustomToken }) => {
+          signInWithCustomToken(auth, event.data.token).catch(console.error);
+        });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   // Auth Listener
@@ -311,11 +329,31 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const login = async () => {
-    window.location.href = '/api/auth/discord';
+    try {
+      const response = await fetch('/api/auth/url');
+      if (!response.ok) {
+        throw new Error('Failed to get auth URL');
+      }
+      const { url } = await response.json();
+
+      const authWindow = window.open(
+        url,
+        'oauth_popup',
+        'width=600,height=700'
+      );
+
+      if (!authWindow) {
+        // Fallback se o popup for bloqueado
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error('OAuth error:', error);
+      alert('Erro ao iniciar login com Discord.');
+    }
   };
 
   const signup = async () => {
-    window.location.href = '/api/auth/discord';
+    return login();
   };
 
   const logout = async () => {
