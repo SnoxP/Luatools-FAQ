@@ -101,7 +101,25 @@ export default async function handler(req: any, res: any) {
     `);
 
   } catch (error: any) {
-    console.error('OAuth Error:', error.response?.data || error.message);
-    res.status(500).send('Erro na autenticação com o Discord.');
+    console.error('OAuth Error:', error.response?.data || error.message || error);
+    
+    // Retornar o erro detalhado para facilitar o debug na tela
+    const errorDetails = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+    
+    res.status(500).send(`
+      <html>
+        <body style="font-family: sans-serif; padding: 20px;">
+          <h2>Erro na autenticação com o Discord</h2>
+          <p>Ocorreu um erro interno no servidor (Vercel).</p>
+          <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-top: 20px; word-break: break-all;">
+            <strong>Detalhes do Erro:</strong><br/>
+            ${errorDetails}
+          </div>
+          <p style="margin-top: 20px; font-size: 14px; color: #666;">
+            Tire um print desta tela e mande para o assistente.
+          </p>
+        </body>
+      </html>
+    `);
   }
 }
