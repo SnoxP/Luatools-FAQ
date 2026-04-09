@@ -119,14 +119,14 @@ export default function ProfilePage() {
           <div className="p-6 sm:p-8 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
-                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">{t('profile.email')}</label>
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">Discord ID</label>
                 <input
-                  type="email"
-                  value={user.email || ''}
+                  type="text"
+                  value={userData?.discordId || user.uid}
                   disabled
-                  className="w-full bg-zinc-50 dark:bg-[#212121]/50 border border-black/5 dark:border-white/5 rounded-xl px-4 py-3 text-zinc-500 cursor-not-allowed text-[15px]"
+                  className="w-full bg-zinc-50 dark:bg-[#212121]/50 border border-black/5 dark:border-white/5 rounded-xl px-4 py-3 text-zinc-500 cursor-not-allowed text-[15px] font-mono"
                 />
-                <p className="text-xs text-zinc-500 mt-2">O e-mail não pode ser alterado.</p>
+                <p className="text-xs text-zinc-500 mt-2">O seu identificador único do Discord.</p>
               </div>
 
               <div>

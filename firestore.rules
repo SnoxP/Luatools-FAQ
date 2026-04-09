@@ -69,8 +69,8 @@ service cloud.firestore {
 
     function isValidUser() {
       return hasOnlyAllowedFields(['email', 'role', 'isOnline', 'lastActive', 'username', 'discordId', 'bio', 'isBanned']) &&
-             hasRequiredFields(['email', 'role']) &&
-             isValidEmail(request.resource.data.email) &&
+             hasRequiredFields(['role']) &&
+             (!('email' in request.resource.data) || request.resource.data.email == '' || isValidEmail(request.resource.data.email)) &&
              request.resource.data.role in ['admin', 'user'] &&
              (!('isOnline' in request.resource.data) || request.resource.data.isOnline is bool) &&
              (!('lastActive' in request.resource.data) || request.resource.data.lastActive is number) &&
@@ -81,10 +81,11 @@ service cloud.firestore {
     }
 
     function isValidChatLog() {
-      return hasOnlyAllowedFields(['userId', 'userEmail', 'question', 'timestamp']) &&
+      return hasOnlyAllowedFields(['userId', 'userEmail', 'username', 'question', 'timestamp']) &&
              hasRequiredFields(['userId', 'userEmail', 'question', 'timestamp']) &&
              request.resource.data.userId is string && request.resource.data.userId.size() > 0 && request.resource.data.userId.size() < 100 &&
              request.resource.data.userEmail is string && request.resource.data.userEmail.size() > 0 && request.resource.data.userEmail.size() < 100 &&
+             (!('username' in request.resource.data) || (request.resource.data.username is string && request.resource.data.username.size() < 100)) &&
              request.resource.data.question is string && request.resource.data.question.size() > 0 && request.resource.data.question.size() < 5000 &&
              request.resource.data.timestamp is number;
     }

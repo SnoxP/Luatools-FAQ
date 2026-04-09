@@ -23,7 +23,7 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   
   const [activeTab, setActiveTab] = useState<'dashboard' | 'faq' | 'users' | 'fix' | 'bot' | 'logs'>('dashboard');
-  const [usersList, setUsersList] = useState<{id: string, email: string, username?: string, discordId?: string, role: string, isOnline?: boolean, lastActive?: number, isBanned?: boolean}[]>([]);
+  const [usersList, setUsersList] = useState<{id: string, email?: string, username?: string, discordId?: string, role: string, isOnline?: boolean, lastActive?: number, isBanned?: boolean}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<{id: string, username: string, role: string} | null>(null);
@@ -245,7 +245,7 @@ export default function AdminPage() {
       await setDoc(doc(db, 'admin_logs', logId), {
         action,
         details,
-        userEmail: user.email,
+        userEmail: userData?.discordId || user.uid, // Keep field name for compatibility
         timestamp: Date.now()
       });
     } catch (err) {
@@ -786,7 +786,7 @@ export default function AdminPage() {
           <AlertTriangle className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
           <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-2">{t('admin.accessDenied')}</h2>
           <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-6">
-            {t('admin.accessDeniedMsg').replace('{email}', user.email || '')}
+            {t('admin.accessDeniedMsg').replace('{email}', userData?.discordId || userData?.username || user.uid)}
           </p>
           <div className="space-y-3">
             <button
@@ -1131,7 +1131,7 @@ export default function AdminPage() {
                         <tr key={u.id} className="border-b border-black/5 dark:border-white/5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
                           <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">
                             <div className="font-medium">{u.username && u.username !== 'Usuário do Discord' ? u.username : (u.discordId || 'Sem nome')}</div>
-                            {u.role !== 'admin' && <div className="text-xs text-zinc-500">{u.email}</div>}
+                            <div className="text-xs text-zinc-500 font-mono">{u.discordId || u.id}</div>
                           </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-zinc-900 dark:bg-white/10 text-white dark:text-white border border-transparent dark:border-white/20' : 'bg-zinc-100 dark:bg-[#212121] text-zinc-600 dark:text-zinc-400 border border-black/10 dark:border-white/10'}`}>
@@ -1423,7 +1423,7 @@ export default function AdminPage() {
                           {chatLogs.map((log) => (
                             <div key={log.id} className="p-4 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors">
                               <div className="flex justify-between items-start mb-2">
-                                <div className="text-sm font-medium text-zinc-900 dark:text-white">{log.username || log.userEmail}</div>
+                                <div className="text-sm font-medium text-zinc-900 dark:text-white">{log.username || (log.userEmail === 'Desconhecido' ? log.userId : log.userEmail)}</div>
                                 <div className="text-xs text-zinc-500">
                                   {new Date(log.timestamp).toLocaleString(language === 'pt-BR' ? 'pt-BR' : 'en-US')}
                                 </div>

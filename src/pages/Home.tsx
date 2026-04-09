@@ -35,10 +35,62 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string } | null>(null);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+  const [showUsageTip, setShowUsageTip] = useState(false);
+  const [modelStatuses, setModelStatuses] = useState<Record<string, { status: 'checking' | 'online' | 'error' }>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user) {
+      const hideUsageTip = localStorage.getItem('hideUsageTip');
+      if (!hideUsageTip) {
+        setShowUsageTip(true);
+      }
+    }
+  }, [user]);
+
+  // Check model statuses
+  useEffect(() => {
+    const checkModels = async () => {
+      const modelsToCheck = [
+        'gemini-3-flash-preview',
+        'gemini-3.1-flash-lite-preview',
+        'gemini-3.1-pro-preview',
+        'gemini-flash-latest'
+      ];
+      
+      const initialStatuses: Record<string, { status: 'checking' | 'online' | 'error' }> = {};
+      modelsToCheck.forEach(m => initialStatuses[m] = { status: 'checking' });
+      setModelStatuses(initialStatuses);
+
+      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        const errorStatuses: Record<string, { status: 'error' }> = {};
+        modelsToCheck.forEach(m => errorStatuses[m] = { status: 'error' });
+        setModelStatuses(errorStatuses as any);
+        return;
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+
+      await Promise.all(modelsToCheck.map(async (modelName) => {
+        try {
+          await ai.models.generateContent({
+            model: modelName,
+            contents: 'ping',
+            config: { maxOutputTokens: 1 }
+          });
+          setModelStatuses(prev => ({ ...prev, [modelName]: { status: 'online' } }));
+        } catch (err) {
+          setModelStatuses(prev => ({ ...prev, [modelName]: { status: 'error' } }));
+        }
+      }));
+    };
+
+    checkModels();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -102,7 +154,7 @@ export default function Home() {
         const logRef = doc(collection(db, 'chat_logs'));
         await setDoc(logRef, {
           userId: user.uid,
-          userEmail: user.email || 'Desconhecido',
+          userEmail: userData?.discordId || user.uid, // Keep field name for compatibility, but store ID
           username: userData?.username || '',
           question: userText || '[Imagem enviada]',
           timestamp: Date.now()
@@ -471,6 +523,9 @@ export default function Home() {
                               <div className="flex items-center gap-2">
                                 <Cpu className="w-4 h-4" />
                                 <span>3.0 Flash</span>
+                                {modelStatuses['gemini-3-flash-preview']?.status === 'error' && (
+                                  <span title="Erro ao conectar com este modelo">⚠️</span>
+                                )}
                               </div>
                               {selectedModel === 'gemini-3-flash-preview' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                             </button>
@@ -485,6 +540,9 @@ export default function Home() {
                               <div className="flex items-center gap-2">
                                 <Cpu className="w-4 h-4" />
                                 <span>3.1 Flash Lite</span>
+                                {modelStatuses['gemini-3.1-flash-lite-preview']?.status === 'error' && (
+                                  <span title="Erro ao conectar com este modelo">⚠️</span>
+                                )}
                               </div>
                               {selectedModel === 'gemini-3.1-flash-lite-preview' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                             </button>
@@ -499,6 +557,9 @@ export default function Home() {
                               <div className="flex items-center gap-2">
                                 <Cpu className="w-4 h-4" />
                                 <span>3.1 Pro</span>
+                                {modelStatuses['gemini-3.1-pro-preview']?.status === 'error' && (
+                                  <span title="Erro ao conectar com este modelo">⚠️</span>
+                                )}
                               </div>
                               {selectedModel === 'gemini-3.1-pro-preview' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                             </button>
@@ -513,6 +574,9 @@ export default function Home() {
                               <div className="flex items-center gap-2">
                                 <Cpu className="w-4 h-4" />
                                 <span>Flash Latest</span>
+                                {modelStatuses['gemini-flash-latest']?.status === 'error' && (
+                                  <span title="Erro ao conectar com este modelo">⚠️</span>
+                                )}
                               </div>
                               {selectedModel === 'gemini-flash-latest' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                             </button>
@@ -596,6 +660,54 @@ export default function Home() {
                   className="px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black font-medium rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
                 >
                   Entendi
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showUsageTip && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-white dark:bg-[#212121] rounded-2xl shadow-xl overflow-hidden border border-black/10 dark:border-white/10"
+            >
+              <div className="p-6 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">Dica de uso</h3>
+                <button
+                  onClick={() => setShowUsageTip(false)}
+                  className="p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4 text-zinc-600 dark:text-zinc-300 leading-relaxed">
+                <p>
+                  Para garantir o melhor funcionamento do bot, recomendamos que você reúna todas as suas perguntas em uma única mensagem. As requisições são limitadas, e enviar várias mensagens separadas pode reduzir a eficiência das respostas ou consumir rapidamente o limite disponível.
+                </p>
+                <p>
+                  Ao enviar tudo de uma vez, você aumenta as chances de receber uma resposta mais completa, organizada e precisa.
+                </p>
+              </div>
+              <div className="p-6 border-t border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-[#171717] flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    localStorage.setItem('hideUsageTip', 'true');
+                    setShowUsageTip(false);
+                  }}
+                  className="px-4 py-2 text-zinc-600 dark:text-zinc-400 font-medium rounded-xl hover:bg-zinc-200 dark:hover:bg-white/10 transition-colors"
+                >
+                  Não mostrar novamente
+                </button>
+                <button
+                  onClick={() => setShowUsageTip(false)}
+                  className="px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black font-medium rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+                >
+                  Ok
                 </button>
               </div>
             </motion.div>

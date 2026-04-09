@@ -121,6 +121,27 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setUserData(data);
               setIsAdmin(data.role === 'admin' || isMainAdmin);
             } else {
+              // Document doesn't exist, try to create it (recovery for users created when rules were strict)
+              try {
+                const email = currentUser.email || '';
+                let discordUsername = currentUser.displayName || 'Usuário do Discord';
+                if (discordId && discordUsername.endsWith(`(${discordId})`)) {
+                  discordUsername = discordUsername.replace(` (${discordId})`, '').trim();
+                }
+                
+                await setDoc(doc(db, 'users', currentUser.uid), {
+                  email: email,
+                  username: discordUsername,
+                  discordId: discordId,
+                  role: isMainAdmin ? 'admin' : 'user',
+                  isOnline: true,
+                  lastActive: Date.now()
+                });
+                console.log("Created missing user document for", currentUser.uid);
+              } catch (e) {
+                console.error("Failed to create missing user document", e);
+              }
+              
               setUserData(null);
               setIsAdmin(isMainAdmin);
             }
@@ -201,8 +222,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         await setDoc(userRef, { 
           isOnline: true, 
-          lastActive: Date.now(),
-          email: user.email // ensure email is there
+          lastActive: Date.now()
         }, { merge: true });
       } catch (error) {
         console.error("Error setting online status", error);
