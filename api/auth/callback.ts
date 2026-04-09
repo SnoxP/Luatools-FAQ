@@ -1,9 +1,9 @@
 import axios from 'axios';
-import * as admin from 'firebase-admin';
+import admin from 'firebase-admin';
 
 // Inicializa Firebase Admin de forma segura
 function getFirebaseAdmin() {
-  if (!admin.apps.length) {
+  if (!admin.apps?.length) {
     try {
       admin.initializeApp({
         credential: admin.credential.cert({
