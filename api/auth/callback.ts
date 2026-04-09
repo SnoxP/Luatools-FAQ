@@ -1,15 +1,23 @@
 import axios from 'axios';
 import * as admin from 'firebase-admin';
 
-// Inicializa Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
+// Inicializa Firebase Admin de forma segura
+function getFirebaseAdmin() {
+  if (!admin.apps.length) {
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        }),
+      });
+    } catch (error) {
+      console.error('Erro ao inicializar Firebase Admin:', error);
+      throw new Error('Configuração do Firebase Admin inválida. Verifique as variáveis de ambiente.');
+    }
+  }
+  return admin;
 }
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
@@ -22,6 +30,8 @@ export default async function handler(req: any, res: any) {
   if (!code) return res.status(400).send('Código não fornecido');
 
   try {
+    const adminInstance = getFirebaseAdmin();
+
     // 1. Exchange code for token
     const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
       client_id: DISCORD_CLIENT_ID!,

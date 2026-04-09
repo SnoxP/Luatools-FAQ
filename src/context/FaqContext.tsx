@@ -332,7 +332,9 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const response = await fetch('/api/auth/url');
       if (!response.ok) {
-        throw new Error('Failed to get auth URL');
+        const errorText = await response.text();
+        console.error('Server response:', errorText);
+        throw new Error(`Failed to get auth URL: ${response.status} - ${errorText}`);
       }
       const { url } = await response.json();
 
