@@ -76,6 +76,19 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
+  // Check for custom token in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const customToken = urlParams.get('auth_token');
+    if (customToken) {
+      // Clear token from URL to prevent sharing it
+      window.history.replaceState({}, document.title, window.location.pathname);
+      import('firebase/auth').then(({ signInWithCustomToken }) => {
+        signInWithCustomToken(auth, customToken).catch(console.error);
+      });
+    }
+  }, []);
+
   // Auth Listener
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
@@ -298,65 +311,11 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const login = async () => {
-    try {
-      const provider = new OAuthProvider('oidc.discord');
-      const result = await signInWithPopup(auth, provider);
-      
-      // Extract Discord ID and Username
-      const discordId = result.user.providerData.find(p => p.providerId === 'oidc.discord')?.uid || '';
-      let discordUsername = result.user.displayName || 'Usuário do Discord';
-      
-      // If the current display name is just the ID, we might not have the real username, but we'll try to extract it if it's different
-      if (discordId && discordUsername === discordId) {
-        // Username is already just the ID, we can't get the real username from here if it was overwritten
-        // We'll keep it as is or try to get it from the database later
-      } else if (discordId && discordUsername.endsWith(`(${discordId})`)) {
-        discordUsername = discordUsername.replace(` (${discordId})`, '').trim();
-      }
-      
-      // Update Firebase Auth profile to show ONLY the Discord ID
-      if (discordId && result.user.displayName !== discordId) {
-        await updateProfile(result.user, {
-          displayName: discordId
-        }).catch(err => console.error("Failed to update profile", err));
-      }
-
-      // Check if user exists in our database
-      const userRef = doc(db, 'users', result.user.uid);
-      const userSnap = await getDoc(userRef);
-      
-      const email = result.user.email || '';
-      const isMainAdmin = email.toLowerCase() === 'pedronobreneto27@gmail.com' || email.toLowerCase() === 'pedronobreneto@gmail.com' || discordId === '542832142745337867';
-      
-      if (!userSnap.exists()) {
-        // Create new user profile
-        await setDoc(userRef, {
-          email: email,
-          username: discordUsername,
-          discordId: discordId,
-          role: isMainAdmin ? 'admin' : 'user'
-        });
-      } else {
-        // Update existing user profile with Discord info if missing or to ensure admin role
-        const data = userSnap.data();
-        const updates: any = {};
-        
-        if (!data.discordId && discordId) updates.discordId = discordId;
-        if (!data.username || data.username === 'Usuário do Discord') updates.username = discordUsername;
-        if (isMainAdmin && data.role !== 'admin') updates.role = 'admin';
-        
-        if (Object.keys(updates).length > 0) {
-          await setDoc(userRef, updates, { merge: true });
-        }
-      }
-    } catch (error: any) {
-      console.error("Login failed:", error);
-      throw error;
-    }
+    window.location.href = '/api/auth/discord';
   };
 
   const signup = async () => {
-    return login(); // Discord handles both login and signup via the same popup
+    window.location.href = '/api/auth/discord';
   };
 
   const logout = async () => {
