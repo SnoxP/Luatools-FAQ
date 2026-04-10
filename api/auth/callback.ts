@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import firebaseConfig from '../../firebase-applet-config.json' assert { type: 'json' };
 
 // Inicializa Firebase Admin de forma segura
 function getFirebaseAdmin() {
