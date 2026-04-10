@@ -1,5 +1,7 @@
 import axios from 'axios';
-import admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 // Inicializa Firebase Admin de forma segura
 function getFirebaseAdmin() {
@@ -53,7 +55,9 @@ export default async function handler(req: any, res: any) {
     const discordUser = userResponse.data;
 
     // 3. Create or update user in Firestore
-    const db = admin.firestore();
+    // O AI Studio usa um banco de dados nomeado, então precisamos passar o ID dele
+    const db = getFirestore(adminInstance.app(), firebaseConfig.firestoreDatabaseId);
+    
     const userRef = db.collection('users').doc(discordUser.id);
     const userDoc = await userRef.get();
 

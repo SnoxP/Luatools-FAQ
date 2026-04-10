@@ -122,7 +122,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">Discord ID</label>
                 <input
                   type="text"
-                  value={userData?.discordId || user.uid}
+                  value={discordId || user.uid}
                   disabled
                   className="w-full bg-zinc-50 dark:bg-[#212121]/50 border border-black/5 dark:border-white/5 rounded-xl px-4 py-3 text-zinc-500 cursor-not-allowed text-[15px] font-mono"
                 />
