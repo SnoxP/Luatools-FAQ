@@ -77,36 +77,6 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAuthReady, setIsAuthReady] = useState(false);
 
   // Check for custom token in URL (fallback if popup blocked)
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const customToken = urlParams.get('auth_token');
-    if (customToken) {
-      // Clear token from URL to prevent sharing it
-      window.history.replaceState({}, document.title, window.location.pathname);
-      import('firebase/auth').then(({ signInWithCustomToken }) => {
-        signInWithCustomToken(auth, customToken).catch(console.error);
-      });
-    }
-  }, []);
-
-  // Listen for success message from popup
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Validate origin is from AI Studio preview or localhost
-      const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
-        return;
-      }
-      if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.token) {
-        import('firebase/auth').then(({ signInWithCustomToken }) => {
-          signInWithCustomToken(auth, event.data.token).catch(console.error);
-        });
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
   // Auth Listener
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
@@ -330,24 +300,11 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const login = async () => {
     try {
-      const response = await fetch('/api/auth/url');
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server response:', errorText);
-        throw new Error(`Failed to get auth URL: ${response.status} - ${errorText}`);
-      }
-      const { url } = await response.json();
-
-      const authWindow = window.open(
-        url,
-        'oauth_popup',
-        'width=600,height=700'
-      );
-
-      if (!authWindow) {
-        // Fallback se o popup for bloqueado
-        window.location.href = url;
-      }
+      const provider = new OAuthProvider('oidc.discord');
+      provider.addScope('identify');
+      provider.addScope('email');
+      
+      await signInWithPopup(auth, provider);
     } catch (error) {
       console.error('OAuth error:', error);
       alert('Erro ao iniciar login com Discord.');
