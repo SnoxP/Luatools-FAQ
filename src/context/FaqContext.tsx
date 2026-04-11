@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { FaqCategory, defaultFaq } from '../data/defaultFaq';
-import { db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
+import { db, auth, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 
 enum OperationType {
   CREATE = 'create',
@@ -64,6 +65,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Auth Listener
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
+    let unsubscribeAuth: (() => void) | null = null;
 
     const storedUser = localStorage.getItem('discord_user');
     if (storedUser) {
@@ -73,54 +75,78 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         const isMainAdmin = parsedUser.discordId === '542832142745337867' || parsedUser.email === 'pedronobreneto27@gmail.com';
         
-        // Try to sync with Firestore (might fail if rules require Firebase Auth)
-        try {
-          unsubscribeUser = onSnapshot(doc(db, 'users', parsedUser.uid), async (userDoc) => {
-            if (userDoc.exists()) {
-              const data = userDoc.data();
-              if (data.isBanned) {
-                localStorage.removeItem('discord_user');
-                setUser(null);
-                setUserData(null);
-                setIsAdmin(false);
-                setIsAuthReady(true);
-                alert("Sua conta foi banida. Entre em contato com o administrador.");
-                return;
-              }
-              
-              setUserData(data);
-              setIsAdmin(data.role === 'admin' || isMainAdmin);
-            } else {
-              // Document doesn't exist, try to create it
-              try {
-                await setDoc(doc(db, 'users', parsedUser.uid), {
-                  email: parsedUser.email,
-                  username: parsedUser.username,
-                  discordId: parsedUser.discordId,
-                  photoURL: parsedUser.photoURL,
-                  role: isMainAdmin ? 'admin' : 'user',
-                  isOnline: true,
-                  lastActive: Date.now()
-                });
-              } catch (e) {
-                console.error("Failed to create missing user document", e);
-              }
-              
-              setUserData(null);
+        unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (!firebaseUser) {
+            // If not signed in to Firebase, sign in anonymously
+            try {
+              await signInAnonymously(auth);
+            } catch (err) {
+              console.error("Failed to sign in anonymously", err);
               setIsAdmin(isMainAdmin);
+              setIsAuthReady(true);
             }
-            setIsAuthReady(true);
-          }, (error) => {
-            console.error("Error listening to user doc:", error);
-            // If permission denied, still allow them to use the app as logged in locally
+            return; // Wait for the next onAuthStateChanged trigger
+          }
+
+          // Migrate existing users who have Discord ID as uid
+          let currentUid = parsedUser.uid;
+          if (currentUid !== firebaseUser.uid) {
+            currentUid = firebaseUser.uid;
+            const updatedUser = { ...parsedUser, uid: currentUid };
+            localStorage.setItem('discord_user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+          }
+
+          // Now we are authenticated in Firebase
+          try {
+            unsubscribeUser = onSnapshot(doc(db, 'users', currentUid), async (userDoc) => {
+              if (userDoc.exists()) {
+                const data = userDoc.data();
+                if (data.isBanned) {
+                  localStorage.removeItem('discord_user');
+                  setUser(null);
+                  setUserData(null);
+                  setIsAdmin(false);
+                  setIsAuthReady(true);
+                  alert("Sua conta foi banida. Entre em contato com o administrador.");
+                  return;
+                }
+                
+                setUserData(data);
+                setIsAdmin(data.role === 'admin' || isMainAdmin);
+              } else {
+                // Document doesn't exist, try to create it
+                try {
+                  await setDoc(doc(db, 'users', currentUid), {
+                    email: parsedUser.email,
+                    username: parsedUser.username,
+                    discordId: parsedUser.discordId,
+                    photoURL: parsedUser.photoURL,
+                    role: isMainAdmin ? 'admin' : 'user',
+                    isOnline: true,
+                    lastActive: Date.now(),
+                    createdAt: Date.now()
+                  });
+                } catch (e) {
+                  console.error("Failed to create missing user document", e);
+                }
+                
+                setUserData(null);
+                setIsAdmin(isMainAdmin);
+              }
+              setIsAuthReady(true);
+            }, (error) => {
+              console.error("Error listening to user doc:", error);
+              // If permission denied, still allow them to use the app as logged in locally
+              setIsAdmin(isMainAdmin);
+              setIsAuthReady(true);
+            });
+          } catch (e) {
+            console.error("Firestore error:", e);
             setIsAdmin(isMainAdmin);
             setIsAuthReady(true);
-          });
-        } catch (e) {
-          console.error("Firestore error:", e);
-          setIsAdmin(isMainAdmin);
-          setIsAuthReady(true);
-        }
+          }
+        });
       } catch (e) {
         console.error("Error parsing stored user", e);
         localStorage.removeItem('discord_user');
@@ -132,6 +158,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => {
       if (unsubscribeUser) unsubscribeUser();
+      if (unsubscribeAuth) unsubscribeAuth();
     };
   }, []);
 

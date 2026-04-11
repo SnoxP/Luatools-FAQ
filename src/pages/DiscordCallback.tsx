@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { auth } from '../firebase';
+import { signInAnonymously } from 'firebase/auth';
 
 export default function DiscordCallback() {
   const navigate = useNavigate();
@@ -31,21 +33,30 @@ export default function DiscordCallback() {
         if (!res.ok) throw new Error('Falha ao buscar dados do Discord');
         return res.json();
       })
-      .then((data) => {
+      .then(async (data) => {
         const avatarUrl = data.avatar
           ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png`
           : `https://cdn.discordapp.com/embed/avatars/${parseInt(data.discriminator || '0') % 5}.png`;
 
-        const userData = {
-          uid: data.id,
-          email: data.email,
-          username: data.username || data.global_name,
-          photoURL: avatarUrl,
-          discordId: data.id,
-        };
+        try {
+          // Sign in anonymously to Firebase to get a UID for Firestore rules
+          const userCredential = await signInAnonymously(auth);
+          const firebaseUid = userCredential.user.uid;
 
-        localStorage.setItem('discord_user', JSON.stringify(userData));
-        window.location.href = '/'; // Força o reload para o contexto pegar os dados atualizados
+          const userData = {
+            uid: firebaseUid, // Use Firebase UID for Firestore
+            email: data.email,
+            username: data.username || data.global_name,
+            photoURL: avatarUrl,
+            discordId: data.id,
+          };
+
+          localStorage.setItem('discord_user', JSON.stringify(userData));
+          window.location.href = '/'; // Força o reload para o contexto pegar os dados atualizados
+        } catch (firebaseErr: any) {
+          console.error("Firebase Auth Error:", firebaseErr);
+          setError("Erro ao autenticar no banco de dados: " + firebaseErr.message);
+        }
       })
       .catch((err) => {
         console.error(err);

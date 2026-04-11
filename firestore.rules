@@ -68,7 +68,7 @@ service cloud.firestore {
     }
 
     function isValidUser() {
-      return hasOnlyAllowedFields(['email', 'role', 'isOnline', 'lastActive', 'username', 'discordId', 'bio', 'isBanned']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'isOnline', 'lastActive', 'username', 'discordId', 'bio', 'isBanned', 'createdAt', 'photoURL']) &&
              hasRequiredFields(['role']) &&
              (!('email' in request.resource.data) || request.resource.data.email == '' || isValidEmail(request.resource.data.email)) &&
              request.resource.data.role in ['admin', 'user'] &&
@@ -77,7 +77,9 @@ service cloud.firestore {
              (!('username' in request.resource.data) || request.resource.data.username is string) &&
              (!('discordId' in request.resource.data) || request.resource.data.discordId is string) &&
              (!('bio' in request.resource.data) || request.resource.data.bio is string) &&
-             (!('isBanned' in request.resource.data) || request.resource.data.isBanned is bool);
+             (!('isBanned' in request.resource.data) || request.resource.data.isBanned is bool) &&
+             (!('createdAt' in request.resource.data) || request.resource.data.createdAt is number || request.resource.data.createdAt is string) &&
+             (!('photoURL' in request.resource.data) || request.resource.data.photoURL is string);
     }
 
     function isValidChatLog() {
