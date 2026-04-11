@@ -25,7 +25,15 @@ export default function Layout() {
     if (isAdmin) {
       navLinks.push({ name: t('nav.admin'), path: '/painel-admin', icon: <Settings className="w-5 h-5 mr-3" /> });
     } else {
-      navLinks.push({ name: t('nav.profile'), path: '/perfil', icon: <UserIcon className="w-5 h-5 mr-3" /> });
+      navLinks.push({ 
+        name: t('nav.profile'), 
+        path: '/perfil', 
+        icon: user.photoURL ? (
+          <img src={user.photoURL} alt="Profile" className="w-5 h-5 rounded-full mr-3" />
+        ) : (
+          <UserIcon className="w-5 h-5 mr-3" />
+        )
+      });
     }
   } else {
     navLinks.push({ name: t('nav.login'), path: '/painel-admin', icon: <Settings className="w-5 h-5 mr-3" /> });

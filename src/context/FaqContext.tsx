@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { FaqCategory, defaultFaq } from '../data/defaultFaq';
-import { auth, db, OAuthProvider, signInWithPopup, signOut, onAuthStateChanged, updateProfile, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
-import { User } from 'firebase/auth';
+import { db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment } from '../firebase';
 
 enum OperationType {
   CREATE = 'create',
@@ -16,36 +15,14 @@ interface FirestoreErrorInfo {
   error: string;
   operationType: OperationType;
   path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
+  authInfo: any;
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
+      userId: localStorage.getItem('discord_user') ? JSON.parse(localStorage.getItem('discord_user')!).uid : null,
     },
     operationType,
     path
@@ -54,11 +31,19 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
+export interface CustomUser {
+  uid: string;
+  email: string;
+  username: string;
+  photoURL: string;
+  discordId: string;
+}
+
 interface FaqContextType {
   faqData: FaqCategory[];
   updateFaqData: (newData: FaqCategory[]) => Promise<void>;
   resetToDefault: () => Promise<void>;
-  user: User | null;
+  user: CustomUser | null;
   userData: any | null;
   isAdmin: boolean;
   isAuthReady: boolean;
@@ -71,74 +56,52 @@ const FaqContext = createContext<FaqContextType | undefined>(undefined);
 
 export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [faqData, setFaqData] = useState<FaqCategory[]>([]);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<CustomUser | null>(null);
   const [userData, setUserData] = useState<any | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
-  // Check for custom token in URL (fallback if popup blocked)
   // Auth Listener
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      if (unsubscribeUser) {
-        unsubscribeUser();
-        unsubscribeUser = null;
-      }
-
-      setUser(currentUser);
-      
-      if (currentUser) {
-        const discordId = currentUser.providerData.find(p => p.providerId === 'oidc.discord')?.uid || '';
-        const isMainAdmin = discordId === '542832142745337867';
-
-        // Check if user is admin based on Firestore role
+    const storedUser = localStorage.getItem('discord_user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser) as CustomUser;
+        setUser(parsedUser);
+        
+        const isMainAdmin = parsedUser.discordId === '542832142745337867' || parsedUser.email === 'pedronobreneto27@gmail.com';
+        
+        // Try to sync with Firestore (might fail if rules require Firebase Auth)
         try {
-          unsubscribeUser = onSnapshot(doc(db, 'users', currentUser.uid), async (userDoc) => {
+          unsubscribeUser = onSnapshot(doc(db, 'users', parsedUser.uid), async (userDoc) => {
             if (userDoc.exists()) {
               const data = userDoc.data();
               if (data.isBanned) {
-                // If banned, sign out immediately
-                signOut(auth).then(() => {
-                  setUser(null);
-                  setUserData(null);
-                  setIsAdmin(false);
-                  setIsAuthReady(true);
-                  alert("Sua conta foi banida. Entre em contato com o administrador.");
-                });
+                localStorage.removeItem('discord_user');
+                setUser(null);
+                setUserData(null);
+                setIsAdmin(false);
+                setIsAuthReady(true);
+                alert("Sua conta foi banida. Entre em contato com o administrador.");
                 return;
-              }
-              
-              // Auto-promote to admin if they are a main admin but their role is not admin
-              if (isMainAdmin && data.role !== 'admin') {
-                try {
-                  await setDoc(doc(db, 'users', currentUser.uid), { role: 'admin' }, { merge: true });
-                } catch (e) {
-                  console.error("Failed to auto-promote admin", e);
-                }
               }
               
               setUserData(data);
               setIsAdmin(data.role === 'admin' || isMainAdmin);
             } else {
-              // Document doesn't exist, try to create it (recovery for users created when rules were strict)
+              // Document doesn't exist, try to create it
               try {
-                const email = currentUser.email || '';
-                let discordUsername = currentUser.displayName || 'Usuário do Discord';
-                if (discordId && discordUsername.endsWith(`(${discordId})`)) {
-                  discordUsername = discordUsername.replace(` (${discordId})`, '').trim();
-                }
-                
-                await setDoc(doc(db, 'users', currentUser.uid), {
-                  email: email,
-                  username: discordUsername,
-                  discordId: discordId,
+                await setDoc(doc(db, 'users', parsedUser.uid), {
+                  email: parsedUser.email,
+                  username: parsedUser.username,
+                  discordId: parsedUser.discordId,
+                  photoURL: parsedUser.photoURL,
                   role: isMainAdmin ? 'admin' : 'user',
                   isOnline: true,
                   lastActive: Date.now()
                 });
-                console.log("Created missing user document for", currentUser.uid);
               } catch (e) {
                 console.error("Failed to create missing user document", e);
               }
@@ -148,26 +111,26 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             setIsAuthReady(true);
           }, (error) => {
-            console.error("Error checking admin status:", error);
-            setUserData(null);
-            setIsAdmin(false);
+            console.error("Error listening to user doc:", error);
+            // If permission denied, still allow them to use the app as logged in locally
+            setIsAdmin(isMainAdmin);
             setIsAuthReady(true);
           });
-        } catch (error) {
-          console.error("Error checking admin status:", error);
-          setUserData(null);
-          setIsAdmin(false);
+        } catch (e) {
+          console.error("Firestore error:", e);
+          setIsAdmin(isMainAdmin);
           setIsAuthReady(true);
         }
-      } else {
-        setUserData(null);
-        setIsAdmin(false);
+      } catch (e) {
+        console.error("Error parsing stored user", e);
+        localStorage.removeItem('discord_user');
         setIsAuthReady(true);
       }
-    });
+    } else {
+      setIsAuthReady(true);
+    }
 
     return () => {
-      unsubscribeAuth();
       if (unsubscribeUser) unsubscribeUser();
     };
   }, []);
@@ -299,16 +262,14 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const login = async () => {
-    try {
-      const provider = new OAuthProvider('oidc.discord');
-      provider.addScope('identify');
-      provider.addScope('email');
-      
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error('OAuth error:', error);
-      alert('Erro ao iniciar login com Discord.');
+    const clientId = (import.meta as any).env.VITE_DISCORD_CLIENT_ID;
+    if (!clientId) {
+      alert("Erro: VITE_DISCORD_CLIENT_ID não está configurado nas variáveis de ambiente da Vercel.");
+      return;
     }
+    const redirectUri = encodeURIComponent(`${window.location.origin}/callback`);
+    const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=identify%20email`;
+    window.location.href = url;
   };
 
   const signup = async () => {
@@ -316,12 +277,11 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout failed:", error);
-      throw error;
-    }
+    localStorage.removeItem('discord_user');
+    setUser(null);
+    setUserData(null);
+    setIsAdmin(false);
+    window.location.href = '/';
   };
 
   return (

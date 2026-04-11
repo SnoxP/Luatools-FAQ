@@ -11,6 +11,7 @@ import AdminPage from './pages/AdminPage';
 import FixPage from './pages/FixPage';
 import ProfilePage from './pages/ProfilePage';
 import DonatePage from './pages/DonatePage';
+import DiscordCallback from './pages/DiscordCallback';
 import { FaqProvider } from './context/FaqContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { ChatProvider } from './context/ChatContext';
@@ -30,6 +31,7 @@ export default function App() {
                 <Route path="perfil" element={<ProfilePage />} />
                 <Route path="donate" element={<DonatePage />} />
               </Route>
+              <Route path="/callback" element={<DiscordCallback />} />
             </Routes>
           </Router>
         </ChatProvider>

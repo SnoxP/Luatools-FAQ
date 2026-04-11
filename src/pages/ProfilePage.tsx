@@ -29,20 +29,14 @@ export default function ProfilePage() {
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         
-        // Extract from provider data as fallback
-        const providerDiscordId = user.providerData.find(p => p.providerId === 'oidc.discord')?.uid || '';
-        
         if (userDoc.exists()) {
           const data = userDoc.data();
           if (data.username) setUsername(data.username);
-          if (data.discordId) {
-            setDiscordId(data.discordId);
-          } else if (providerDiscordId) {
-            setDiscordId(providerDiscordId);
-          }
+          if (data.discordId) setDiscordId(data.discordId);
           if (data.bio) setBio(data.bio);
-        } else if (providerDiscordId) {
-          setDiscordId(providerDiscordId);
+        } else {
+          setDiscordId(user.discordId);
+          setUsername(user.username);
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -99,8 +93,12 @@ export default function ProfilePage() {
         >
           <div className="bg-white dark:bg-[#2f2f2f] px-6 sm:px-8 py-6 border-b border-black/10 dark:border-white/10 flex items-center justify-between transition-colors duration-200">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-zinc-50 dark:bg-[#212121] rounded-xl border border-black/5 dark:border-white/5">
-                <UserIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
+              <div className="p-1 bg-zinc-50 dark:bg-[#212121] rounded-xl border border-black/5 dark:border-white/5 overflow-hidden">
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="Avatar" className="w-10 h-10 rounded-lg object-cover" />
+                ) : (
+                  <UserIcon className="w-10 h-10 p-2 text-zinc-600 dark:text-zinc-300" />
+                )}
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-zinc-900 dark:text-white">{t('profile.title')}</h1>
