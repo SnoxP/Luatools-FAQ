@@ -55,7 +55,11 @@ export default function DiscordCallback() {
           window.location.href = '/'; // Força o reload para o contexto pegar os dados atualizados
         } catch (firebaseErr: any) {
           console.error("Firebase Auth Error:", firebaseErr);
-          setError("Erro ao autenticar no banco de dados: " + firebaseErr.message);
+          if (firebaseErr.code === 'auth/admin-restricted-operation' || firebaseErr.code === 'auth/operation-not-allowed') {
+            setError("Para usar o login com Discord, você precisa ativar o 'Anônimo' (Anonymous) nos provedores de login do Firebase Authentication no console do Firebase.");
+          } else {
+            setError("Erro ao autenticar no banco de dados: " + firebaseErr.message);
+          }
         }
       })
       .catch((err) => {
