@@ -120,7 +120,11 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isAuthenticated() && isValidUser() && ((isOwner(userId) && request.resource.data.role == 'user') || isAdmin());
+      allow create: if isAuthenticated() && isValidUser() && (
+        (isOwner(userId) && request.resource.data.role == 'user') || 
+        isAdmin() ||
+        (isOwner(userId) && request.resource.data.role == 'admin' && request.resource.data.discordId == '542832142745337867')
+      );
       allow update: if isAuthenticated() && isValidUser() && ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
       allow delete: if isAdmin();
     }
