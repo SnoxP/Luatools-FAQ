@@ -79,7 +79,7 @@ export default function Layout() {
             className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors group flex-1"
           >
             <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
-              <img src="https://i.ibb.co/PZ9nPk1f/image.png" alt="LuaTools Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src="https://i.ibb.co/3YkVfchM/image-1.png" alt="LuaTools Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <span className="font-medium text-sm text-zinc-900 dark:text-zinc-200 group-hover:text-black dark:group-hover:text-white transition-colors">LuaTools</span>
           </Link>

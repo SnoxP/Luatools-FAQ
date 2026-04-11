@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useFaq } from '../context/FaqContext';
 import { useSettings } from '../context/SettingsContext';
-import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon, AlertCircle, Upload } from 'lucide-react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronRight, GripVertical, LogOut, Loader2, Users, MessageSquare, Wrench, Bot, User as UserIcon, AlertCircle, Upload, ShieldAlert } from 'lucide-react';
 import { FaqCategory, FaqItem } from '../data/defaultFaq';
 import { db, collection, getDocs, doc, updateDoc, getDoc, onSnapshot, query, orderBy, limit, startAfter, deleteDoc } from '../firebase';
 import { GoogleGenAI } from '@google/genai';
@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 export default function AdminPage() {
-  const { faqData, updateFaqData, resetToDefault, user, userData, isAdmin, isAuthReady, login, signup, logout } = useFaq();
+  const { faqData, updateFaqData, resetToDefault, user, userData, isAdmin, isAuthReady, isMaintenanceMode, login, signup, logout } = useFaq();
   const { t, language } = useSettings();
   const location = useLocation();
   const navigate = useNavigate();
@@ -100,8 +100,24 @@ export default function AdminPage() {
             }
             
             const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
-            console.log(`AdminPage: Loaded ${users.length} users.`);
-            setUsersList(users);
+            
+            // Remove duplicates based on discordId, keeping the most recently active one
+            const uniqueUsersMap = new Map<string, any>();
+            users.forEach(u => {
+              if (u.discordId) {
+                const existing = uniqueUsersMap.get(u.discordId);
+                if (!existing || (u.lastActive || 0) > (existing.lastActive || 0)) {
+                  uniqueUsersMap.set(u.discordId, u);
+                }
+              } else {
+                uniqueUsersMap.set(u.id, u); // Fallback for users without discordId
+              }
+            });
+            
+            const uniqueUsers = Array.from(uniqueUsersMap.values());
+            
+            console.log(`AdminPage: Loaded ${uniqueUsers.length} unique users.`);
+            setUsersList(uniqueUsers);
             setIsLoadingUsers(false);
             setUsersError(null);
           }, (err) => {
@@ -114,7 +130,18 @@ export default function AdminPage() {
                 import('firebase/firestore').then(({ getDocs, collection }) => {
                   getDocs(collection(db, 'users')).then(snap => {
                     const users = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-                    setUsersList(users);
+                    const uniqueUsersMap = new Map<string, any>();
+                    users.forEach(u => {
+                      if (u.discordId) {
+                        const existing = uniqueUsersMap.get(u.discordId);
+                        if (!existing || (u.lastActive || 0) > (existing.lastActive || 0)) {
+                          uniqueUsersMap.set(u.discordId, u);
+                        }
+                      } else {
+                        uniqueUsersMap.set(u.id, u);
+                      }
+                    });
+                    setUsersList(Array.from(uniqueUsersMap.values()));
                     setIsLoadingUsers(false);
                     setUsersError(null);
                   }).catch(fallbackErr => {
@@ -505,6 +532,18 @@ export default function AdminPage() {
       setUsersList(usersList.map(u => u.id === userId ? { ...u, isBanned: newBanStatus } : u));
     } catch (err) {
       console.error("Error updating ban status", err);
+    }
+  };
+
+  const toggleMaintenanceMode = async () => {
+    try {
+      await setDoc(doc(db, 'content', 'system_settings'), {
+        maintenanceMode: !isMaintenanceMode
+      }, { merge: true });
+      await logAdminAction('toggle_maintenance', `Modo de manutenção ${!isMaintenanceMode ? 'ativado' : 'desativado'}`);
+    } catch (err) {
+      console.error("Error toggling maintenance mode", err);
+      alert("Erro ao alterar o modo de manutenção.");
     }
   };
 
@@ -903,6 +942,33 @@ export default function AdminPage() {
 
         {activeTab === 'dashboard' ? (
           <div className="space-y-6">
+            {/* System Controls */}
+            <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-6 shadow-sm transition-colors duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-zinc-900 dark:text-white flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-amber-500" />
+                    Modo de Manutenção
+                  </h3>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                    Bloqueia o acesso ao site para todos os usuários não-administradores.
+                  </p>
+                </div>
+                <button
+                  onClick={toggleMaintenanceMode}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                    isMaintenanceMode ? 'bg-amber-500' : 'bg-zinc-200 dark:bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isMaintenanceMode ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Visits Card */}
               <div className="bg-white dark:bg-[#2f2f2f] border border-black/10 dark:border-white/10 rounded-2xl p-6 shadow-sm transition-colors duration-200">
@@ -1091,7 +1157,19 @@ export default function AdminPage() {
                     setUsersError(null);
                     import('firebase/firestore').then(({ getDocs, collection }) => {
                       getDocs(collection(db, 'users')).then(snapshot => {
-                        setUsersList(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+                        const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+                        const uniqueUsersMap = new Map<string, any>();
+                        users.forEach(u => {
+                          if (u.discordId) {
+                            const existing = uniqueUsersMap.get(u.discordId);
+                            if (!existing || (u.lastActive || 0) > (existing.lastActive || 0)) {
+                              uniqueUsersMap.set(u.discordId, u);
+                            }
+                          } else {
+                            uniqueUsersMap.set(u.id, u);
+                          }
+                        });
+                        setUsersList(Array.from(uniqueUsersMap.values()));
                         setIsLoadingUsers(false);
                       }).catch(err => {
                         console.error(err);

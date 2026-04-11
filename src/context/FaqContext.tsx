@@ -48,6 +48,7 @@ interface FaqContextType {
   userData: any | null;
   isAdmin: boolean;
   isAuthReady: boolean;
+  isMaintenanceMode: boolean;
   login: () => Promise<void>;
   signup: () => Promise<void>;
   logout: () => Promise<void>;
@@ -61,6 +62,21 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [userData, setUserData] = useState<any | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+
+  // Maintenance Mode Listener
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, 'content', 'system_settings'), (docSnap) => {
+      if (docSnap.exists()) {
+        setIsMaintenanceMode(docSnap.data().maintenanceMode === true);
+      } else {
+        setIsMaintenanceMode(false);
+      }
+    }, (error) => {
+      console.error("Error fetching system settings:", error);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Auth Listener
   useEffect(() => {
@@ -312,7 +328,7 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <FaqContext.Provider value={{ faqData, updateFaqData, resetToDefault, user, userData, isAdmin, isAuthReady, login, signup, logout }}>
+    <FaqContext.Provider value={{ faqData, updateFaqData, resetToDefault, user, userData, isAdmin, isAuthReady, isMaintenanceMode, login, signup, logout }}>
       {children}
     </FaqContext.Provider>
   );
