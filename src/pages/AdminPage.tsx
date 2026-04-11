@@ -23,7 +23,7 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   
   const [activeTab, setActiveTab] = useState<'dashboard' | 'faq' | 'users' | 'fix' | 'bot' | 'logs'>('dashboard');
-  const [usersList, setUsersList] = useState<{id: string, email?: string, username?: string, discordId?: string, role: string, isOnline?: boolean, lastActive?: number, isBanned?: boolean}[]>([]);
+  const [usersList, setUsersList] = useState<{id: string, email?: string, username?: string, discordId?: string, role: string, isOnline?: boolean, lastActive?: number, isBanned?: boolean, createdAt?: number | string, photoURL?: string}[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<{id: string, username: string, role: string} | null>(null);
@@ -1120,6 +1120,7 @@ export default function AdminPage() {
                       <tr className="border-b border-black/10 dark:border-white/10 text-zinc-500 dark:text-zinc-400 text-sm transition-colors">
                         <th className="py-3 px-4 font-medium">Usuário</th>
                         <th className="py-3 px-4 font-medium">{t('profile.role')}</th>
+                        <th className="py-3 px-4 font-medium">Data de Entrada</th>
                         <th className="py-3 px-4 font-medium">{t('admin.status')}</th>
                         <th className="py-3 px-4 font-medium text-right">{t('admin.actions')}</th>
                       </tr>
@@ -1127,16 +1128,33 @@ export default function AdminPage() {
                     <tbody>
                       {usersList.map(u => {
                         const isOnline = u.isOnline && u.lastActive && (Date.now() - u.lastActive < 120000);
+                        const joinDate = u.createdAt ? new Date(u.createdAt).toLocaleDateString(language === 'pt-BR' ? 'pt-BR' : 'en-US') : 'Desconhecida';
                         return (
                         <tr key={u.id} className="border-b border-black/5 dark:border-white/5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
                           <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">
-                            <div className="font-medium">{u.username && u.username !== 'Usuário do Discord' ? u.username : (u.discordId || 'Sem nome')}</div>
-                            <div className="text-xs text-zinc-500 font-mono">{u.discordId || u.id}</div>
+                            <div className="flex items-center gap-3">
+                              {u.photoURL ? (
+                                <img src={u.photoURL} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                                  <UserIcon className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-medium">{u.username && u.username !== 'Usuário do Discord' ? u.username : (u.discordId || 'Sem nome')}</div>
+                                <div className="text-xs text-zinc-500 font-mono">{u.discordId || u.id}</div>
+                              </div>
+                            </div>
                           </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-zinc-900 dark:bg-white/10 text-white dark:text-white border border-transparent dark:border-white/20' : 'bg-zinc-100 dark:bg-[#212121] text-zinc-600 dark:text-zinc-400 border border-black/10 dark:border-white/10'}`}>
                               {u.role === 'admin' ? t('profile.admin') : t('profile.member')}
                             </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                              {joinDate}
+                            </div>
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
@@ -1423,7 +1441,16 @@ export default function AdminPage() {
                           {chatLogs.map((log) => (
                             <div key={log.id} className="p-4 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors">
                               <div className="flex justify-between items-start mb-2">
-                                <div className="text-sm font-medium text-zinc-900 dark:text-white">{log.username || (log.userEmail === 'Desconhecido' ? log.userId : log.userEmail)}</div>
+                                <div className="flex items-center gap-2">
+                                  {log.userPhotoURL ? (
+                                    <img src={log.userPhotoURL} alt="Avatar" className="w-6 h-6 rounded-full object-cover" />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                                      <UserIcon className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
+                                    </div>
+                                  )}
+                                  <div className="text-sm font-medium text-zinc-900 dark:text-white">{log.username || (log.userEmail === 'Desconhecido' ? log.userId : log.userEmail)}</div>
+                                </div>
                                 <div className="text-xs text-zinc-500">
                                   {new Date(log.timestamp).toLocaleString(language === 'pt-BR' ? 'pt-BR' : 'en-US')}
                                 </div>

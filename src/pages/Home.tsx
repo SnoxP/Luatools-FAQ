@@ -156,6 +156,7 @@ export default function Home() {
           userId: user.uid,
           userEmail: userData?.discordId || user.uid, // Keep field name for compatibility, but store ID
           username: userData?.username || '',
+          userPhotoURL: userData?.photoURL || '',
           question: userText || '[Imagem enviada]',
           timestamp: Date.now()
         });
