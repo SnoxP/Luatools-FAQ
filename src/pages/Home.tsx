@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, Loader2, AlertCircle, Image as ImageIcon, X, Plus, Menu, MessageSquare, Trash2, PanelLeft, Cpu } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
+import Groq from 'groq-sdk';
 import { useFaq } from '../context/FaqContext';
 import { useSettings } from '../context/SettingsContext';
 import DiscordMarkdown from '../components/DiscordMarkdown';
@@ -10,6 +11,7 @@ import { db } from '../firebase';
 import { Link } from 'react-router-dom';
 
 let aiInstance: GoogleGenAI | null = null;
+let groqInstance: Groq | null = null;
 
 const getAI = () => {
   if (!aiInstance) {
@@ -21,6 +23,18 @@ const getAI = () => {
     aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
+};
+
+const getGroqAI = () => {
+  if (!groqInstance) {
+    const apiKey = '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';
+    if (!apiKey) {
+      console.error("GROQ_API_KEY is missing.");
+      return null;
+    }
+    groqInstance = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+  }
+  return groqInstance;
 };
 
 import { useChat, Message } from '../context/ChatContext';
@@ -58,7 +72,9 @@ export default function Home() {
         'gemini-3-flash-preview',
         'gemini-3.1-flash-lite-preview',
         'gemini-3.1-pro-preview',
-        'gemini-flash-latest'
+        'gemini-flash-latest',
+        'groq-llama3-8b-8192',
+        'groq-llama3-70b-8192'
       ];
       
       const initialStatuses: Record<string, { status: 'checking' | 'online' | 'error' }> = {};
@@ -66,27 +82,46 @@ export default function Home() {
       setModelStatuses(initialStatuses);
 
       const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        const errorStatuses: Record<string, { status: 'error' }> = {};
-        modelsToCheck.forEach(m => errorStatuses[m] = { status: 'error' });
-        setModelStatuses(errorStatuses as any);
-        return;
+      if (apiKey) {
+        const ai = new GoogleGenAI({ apiKey });
+        await Promise.all(modelsToCheck.filter(m => !m.startsWith('groq-')).map(async (modelName) => {
+          try {
+            await ai.models.generateContent({
+              model: modelName,
+              contents: 'ping',
+              config: { maxOutputTokens: 1 }
+            });
+            setModelStatuses(prev => ({ ...prev, [modelName]: { status: 'online' } }));
+          } catch (err) {
+            setModelStatuses(prev => ({ ...prev, [modelName]: { status: 'error' } }));
+          }
+        }));
+      } else {
+        modelsToCheck.filter(m => !m.startsWith('groq-')).forEach(m => {
+          setModelStatuses(prev => ({ ...prev, [m]: { status: 'error' } }));
+        });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
-
-      await Promise.all(modelsToCheck.map(async (modelName) => {
-        try {
-          await ai.models.generateContent({
-            model: modelName,
-            contents: 'ping',
-            config: { maxOutputTokens: 1 }
-          });
-          setModelStatuses(prev => ({ ...prev, [modelName]: { status: 'online' } }));
-        } catch (err) {
-          setModelStatuses(prev => ({ ...prev, [modelName]: { status: 'error' } }));
-        }
-      }));
+      const groq = getGroqAI();
+      if (groq) {
+        await Promise.all(modelsToCheck.filter(m => m.startsWith('groq-')).map(async (modelName) => {
+          try {
+            const groqModel = modelName.replace('groq-', '');
+            await groq.chat.completions.create({
+              messages: [{ role: 'user', content: 'ping' }],
+              model: groqModel,
+              max_tokens: 1
+            });
+            setModelStatuses(prev => ({ ...prev, [modelName]: { status: 'online' } }));
+          } catch (err) {
+            setModelStatuses(prev => ({ ...prev, [modelName]: { status: 'error' } }));
+          }
+        }));
+      } else {
+        modelsToCheck.filter(m => m.startsWith('groq-')).forEach(m => {
+          setModelStatuses(prev => ({ ...prev, [m]: { status: 'error' } }));
+        });
+      }
     };
 
     checkModels();
@@ -176,17 +211,6 @@ export default function Home() {
       5. Quando responder a uma dúvida do FAQ, sugira 1 ou 2 perguntas relacionadas no final.
       6. ANÁLISE DE IMAGENS: Se o usuário enviar uma imagem, aja como um desenvolvedor sênior investigando um bug. Analise a imagem detalhadamente, pense passo a passo sobre o que está visível (erros de sintaxe, logs, interface), identifique a causa raiz e forneça uma explicação técnica aprofundada com possíveis soluções (mesmo que não estejam no FAQ).`;
 
-      const ai = getAI();
-      if (!ai) {
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          role: 'model',
-          text: '⚠️ Erro de Configuração: A chave da API do Gemini não foi encontrada.'
-        }]);
-        setIsLoading(false);
-        return;
-      }
-
       try {
         const today = new Date().toLocaleDateString('pt-BR');
         const botRef = doc(db, 'content', 'bot_settings');
@@ -268,35 +292,7 @@ export default function Home() {
 
       const historyMessages = currentMessages.filter(m => m.id !== 'welcome');
       
-      const contents = historyMessages.map(m => {
-        const parts: any[] = [];
-        if (m.text) {
-          parts.push({ text: m.text });
-        }
-        if (m.image) {
-          parts.push({ inlineData: { data: m.image.data, mimeType: m.image.mimeType } });
-        }
-        if (parts.length === 1 && m.image) {
-           parts.unshift({ text: "Analise esta imagem." });
-        }
-        return {
-          role: m.role,
-          parts
-        };
-      });
-
-      const responseStream = await ai.models.generateContentStream({
-        model: selectedModel,
-        contents,
-        config: {
-          systemInstruction,
-          temperature: 0.4,
-        }
-      });
-      
       const newModelMsgId = (Date.now() + 1).toString();
-      
-      // Adiciona a mensagem vazia primeiro para começar a preencher
       setMessages(prev => [...prev, {
         id: newModelMsgId,
         role: 'model',
@@ -304,11 +300,77 @@ export default function Home() {
       }]);
 
       let fullText = '';
-      for await (const chunk of responseStream) {
-        fullText += chunk.text;
-        setMessages(prev => prev.map(msg => 
-          msg.id === newModelMsgId ? { ...msg, text: fullText } : msg
-        ));
+
+      if (selectedModel.startsWith('groq-')) {
+        const groq = getGroqAI();
+        if (!groq) {
+          throw new Error('Chave da API do Groq não configurada.');
+        }
+
+        const groqModel = selectedModel.replace('groq-', '');
+        const groqMessages = historyMessages.map(m => ({
+          role: m.role === 'model' ? 'assistant' : 'user',
+          content: m.text || ''
+        }));
+
+        // Add system instruction
+        groqMessages.unshift({
+          role: 'system',
+          content: systemInstruction
+        });
+
+        const stream = await groq.chat.completions.create({
+          messages: groqMessages as any,
+          model: groqModel,
+          temperature: 0.4,
+          stream: true,
+        });
+
+        for await (const chunk of stream) {
+          fullText += chunk.choices[0]?.delta?.content || '';
+          setMessages(prev => prev.map(msg => 
+            msg.id === newModelMsgId ? { ...msg, text: fullText } : msg
+          ));
+        }
+
+      } else {
+        const ai = getAI();
+        if (!ai) {
+          throw new Error('Chave da API do Gemini não configurada.');
+        }
+
+        const contents = historyMessages.map(m => {
+          const parts: any[] = [];
+          if (m.text) {
+            parts.push({ text: m.text });
+          }
+          if (m.image) {
+            parts.push({ inlineData: { data: m.image.data, mimeType: m.image.mimeType } });
+          }
+          if (parts.length === 1 && m.image) {
+             parts.unshift({ text: "Analise esta imagem." });
+          }
+          return {
+            role: m.role,
+            parts
+          };
+        });
+
+        const responseStream = await ai.models.generateContentStream({
+          model: selectedModel,
+          contents,
+          config: {
+            systemInstruction,
+            temperature: 0.4,
+          }
+        });
+
+        for await (const chunk of responseStream) {
+          fullText += chunk.text;
+          setMessages(prev => prev.map(msg => 
+            msg.id === newModelMsgId ? { ...msg, text: fullText } : msg
+          ));
+        }
       }
 
       if (!fullText) {
@@ -580,6 +642,40 @@ export default function Home() {
                                 )}
                               </div>
                               {selectedModel === 'gemini-flash-latest' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedModel('groq-llama3-8b-8192');
+                                setShowAttachmentMenu(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${selectedModel === 'groq-llama3-8b-8192' ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white font-medium' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Cpu className="w-4 h-4" />
+                                <span>Llama 3 8B (Groq)</span>
+                                {modelStatuses['groq-llama3-8b-8192']?.status === 'error' && (
+                                  <span title="Erro ao conectar com este modelo">⚠️</span>
+                                )}
+                              </div>
+                              {selectedModel === 'groq-llama3-8b-8192' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedModel('groq-llama3-70b-8192');
+                                setShowAttachmentMenu(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${selectedModel === 'groq-llama3-70b-8192' ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white font-medium' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Cpu className="w-4 h-4" />
+                                <span>Llama 3 70B (Groq)</span>
+                                {modelStatuses['groq-llama3-70b-8192']?.status === 'error' && (
+                                  <span title="Erro ao conectar com este modelo">⚠️</span>
+                                )}
+                              </div>
+                              {selectedModel === 'groq-llama3-70b-8192' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                             </button>
                           </div>
                         </div>
