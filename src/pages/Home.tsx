@@ -199,9 +199,14 @@ export default function Home() {
         console.error("Error saving chat log:", logError);
       }
 
+      // Compact FAQ to save tokens
+      const compactFaq = faqData.map(c => 
+        c.items.map(i => `Q: ${i.question}\nA: ${i.answer}`).join('\n\n')
+      ).join('\n\n');
+
       const systemInstruction = `Você é o assistente virtual amigável e especialista do servidor Discord 'LuaTools'.
       Seu objetivo é ajudar os usuários respondendo dúvidas com base no seguinte FAQ:
-      ${JSON.stringify(faqData)}
+      ${compactFaq}
 
       REGRAS:
       1. Seja educado, amigável e humano. Se o usuário apenas disser "oi", "olá", "bom dia", etc., responda de forma acolhedora e pergunte como pode ajudar.
@@ -290,7 +295,8 @@ export default function Home() {
         console.error("Error checking bot limits", e);
       }
 
-      const historyMessages = currentMessages.filter(m => m.id !== 'welcome');
+      // Limit history to the last 4 messages (2 interactions) to save tokens, especially for Groq
+      const historyMessages = currentMessages.filter(m => m.id !== 'welcome').slice(-4);
       
       const newModelMsgId = (Date.now() + 1).toString();
       setMessages(prev => [...prev, {
