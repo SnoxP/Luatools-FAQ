@@ -36,7 +36,7 @@ export default function Layout() {
       });
     }
   } else {
-    navLinks.push({ name: t('nav.login'), path: '/painel-admin', icon: <Settings className="w-5 h-5 mr-3" /> });
+    navLinks.push({ name: t('nav.login'), path: '/login', icon: <UserIcon className="w-5 h-5 mr-3" /> });
   }
 
   return (

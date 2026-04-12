@@ -12,6 +12,7 @@ import FixPage from './pages/FixPage';
 import ProfilePage from './pages/ProfilePage';
 import DonatePage from './pages/DonatePage';
 import DiscordCallback from './pages/DiscordCallback';
+import LoginPage from './pages/LoginPage';
 import { FaqProvider, useFaq } from './context/FaqContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { ChatProvider } from './context/ChatContext';
@@ -49,6 +50,7 @@ function AppContent() {
           <Route path="painel-admin" element={<AdminPage />} />
           <Route path="perfil" element={<ProfilePage />} />
           <Route path="donate" element={<DonatePage />} />
+          <Route path="login" element={<LoginPage />} />
         </Route>
         <Route path="/callback" element={<DiscordCallback />} />
       </Routes>

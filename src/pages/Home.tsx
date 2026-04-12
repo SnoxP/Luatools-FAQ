@@ -439,7 +439,7 @@ export default function Home() {
           <div className="bg-white dark:bg-[#2f2f2f] rounded-3xl border border-black/10 dark:border-white/10 p-6 text-center shadow-lg transition-colors duration-200">
             <p className="text-zinc-600 dark:text-zinc-300 mb-4">{t('home.loginRequired')}</p>
             <div className="flex flex-col items-center gap-3">
-              <Link to="/painel-admin" className="inline-block px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black font-medium rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors">
+              <Link to="/login" className="inline-block px-6 py-2 bg-[#5865F2] text-white font-medium rounded-full hover:bg-[#4752C4] transition-colors shadow-sm">
                 {t('home.loginButton')}
               </Link>
               <button 
