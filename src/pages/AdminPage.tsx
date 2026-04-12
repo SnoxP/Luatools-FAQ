@@ -24,6 +24,8 @@ export default function AdminPage() {
   
   const [activeTab, setActiveTab] = useState<'dashboard' | 'faq' | 'users' | 'fix' | 'bot' | 'logs'>('dashboard');
   const [usersList, setUsersList] = useState<{id: string, email?: string, username?: string, discordId?: string, role: string, isOnline?: boolean, lastActive?: number, isBanned?: boolean, createdAt?: number | string, photoURL?: string}[]>([]);
+  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
+  const usersPerPage = 20;
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<{id: string, username: string, role: string} | null>(null);
@@ -114,7 +116,7 @@ export default function AdminPage() {
               }
             });
             
-            const uniqueUsers = Array.from(uniqueUsersMap.values());
+            const uniqueUsers = Array.from(uniqueUsersMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
             
             console.log(`AdminPage: Loaded ${uniqueUsers.length} unique users.`);
             setUsersList(uniqueUsers);
@@ -141,7 +143,7 @@ export default function AdminPage() {
                         uniqueUsersMap.set(u.id, u);
                       }
                     });
-                    setUsersList(Array.from(uniqueUsersMap.values()));
+                    setUsersList(Array.from(uniqueUsersMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
                     setIsLoadingUsers(false);
                     setUsersError(null);
                   }).catch(fallbackErr => {
@@ -1169,7 +1171,7 @@ export default function AdminPage() {
                             uniqueUsersMap.set(u.id, u);
                           }
                         });
-                        setUsersList(Array.from(uniqueUsersMap.values()));
+                        setUsersList(Array.from(uniqueUsersMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
                         setIsLoadingUsers(false);
                       }).catch(err => {
                         console.error(err);
@@ -1204,9 +1206,11 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {usersList.map(u => {
+                      {usersList.slice((usersCurrentPage - 1) * usersPerPage, usersCurrentPage * usersPerPage).map(u => {
                         const isOnline = u.isOnline && u.lastActive && (Date.now() - u.lastActive < 120000);
-                        const joinDate = u.createdAt ? new Date(u.createdAt).toLocaleDateString(language === 'pt-BR' ? 'pt-BR' : 'en-US') : 'Desconhecida';
+                        const joinDateObj = u.createdAt ? new Date(u.createdAt) : null;
+                        const joinDate = joinDateObj ? joinDateObj.toLocaleDateString(language === 'pt-BR' ? 'pt-BR' : 'en-US') : 'Desconhecida';
+                        const joinTime = joinDateObj ? joinDateObj.toLocaleTimeString(language === 'pt-BR' ? 'pt-BR' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '';
                         return (
                         <tr key={u.id} className="border-b border-black/5 dark:border-white/5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
                           <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">
@@ -1231,7 +1235,7 @@ export default function AdminPage() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                              {joinDate}
+                              {joinDate} {joinTime && <span className="text-xs opacity-75 ml-1">{joinTime}</span>}
                             </div>
                           </td>
                           <td className="py-3 px-4">
@@ -1285,6 +1289,31 @@ export default function AdminPage() {
                       )}
                     </tbody>
                   </table>
+                  
+                  {/* Pagination Controls */}
+                  {usersList.length > usersPerPage && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-black/10 dark:border-white/10">
+                      <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                        Mostrando <span className="font-medium">{(usersCurrentPage - 1) * usersPerPage + 1}</span> a <span className="font-medium">{Math.min(usersCurrentPage * usersPerPage, usersList.length)}</span> de <span className="font-medium">{usersList.length}</span> usuários
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setUsersCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={usersCurrentPage === 1}
+                          className="px-3 py-1 text-sm rounded-md bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Anterior
+                        </button>
+                        <button
+                          onClick={() => setUsersCurrentPage(prev => Math.min(prev + 1, Math.ceil(usersList.length / usersPerPage)))}
+                          disabled={usersCurrentPage === Math.ceil(usersList.length / usersPerPage)}
+                          className="px-3 py-1 text-sm rounded-md bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Próximo
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
