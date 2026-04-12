@@ -320,6 +320,19 @@ export const FaqProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = async () => {
+    if (user) {
+      try {
+        const logId = `log_${Date.now()}`;
+        await setDoc(doc(db, 'admin_logs', logId), {
+          action: 'logout',
+          details: `Usuário saiu: ${userData?.username || 'Desconhecido'} (${userData?.discordId || user.uid})`,
+          userEmail: user.uid,
+          timestamp: Date.now()
+        });
+      } catch (logErr) {
+        console.error("Failed to log logout action", logErr);
+      }
+    }
     localStorage.removeItem('discord_user');
     setUser(null);
     setUserData(null);

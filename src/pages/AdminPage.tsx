@@ -52,7 +52,9 @@ export default function AdminPage() {
   const [isLoadingBot, setIsLoadingBot] = useState(false);
   const [saveBotStatus, setSaveBotStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [botStatuses, setBotStatuses] = useState<Record<string, { status: 'checking' | 'online' | 'error', reason?: string }>>({});
+  const [isBotModelsExpanded, setIsBotModelsExpanded] = useState(false);
   const [chatLogs, setChatLogs] = useState<any[]>([]);
+  const [expandedChatLogId, setExpandedChatLogId] = useState<string | null>(null);
   const [chatLogsCursors, setChatLogsCursors] = useState<any[]>([null]);
   const [chatLogsPage, setChatLogsPage] = useState(0);
   const [hasMoreLogs, setHasMoreLogs] = useState(true);
@@ -1479,15 +1481,19 @@ export default function AdminPage() {
                         <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-1">{t('admin.botStatus')}</h3>
                         <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('admin.botStatusDesc')}</p>
                       </div>
-                      <div className="text-center shrink-0">
+                      <div className="text-center shrink-0 flex gap-2">
+                        <button onClick={() => setIsBotModelsExpanded(!isBotModelsExpanded)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#2f2f2f] hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-colors border border-black/10 dark:border-white/10">
+                          {isBotModelsExpanded ? 'Recolher' : 'Expandir'}
+                        </button>
                         <button onClick={checkBotStatus} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-[#2f2f2f] hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-colors border border-black/10 dark:border-white/10">
                           <RotateCcw className="w-4 h-4" /> {t('admin.botTestAgain')}
                         </button>
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                      {Object.entries(botStatuses).map(([model, info]) => (
+                    {isBotModelsExpanded && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                        {Object.entries(botStatuses).map(([model, info]) => (
                         <div key={model} className="bg-white dark:bg-[#171717] p-4 rounded-xl border border-black/5 dark:border-white/5 flex flex-col gap-3">
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-sm text-zinc-900 dark:text-white">{model}</span>
@@ -1512,7 +1518,8 @@ export default function AdminPage() {
                           )}
                         </div>
                       ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-zinc-50 dark:bg-[#212121] border border-black/10 dark:border-white/10 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center justify-between transition-colors duration-200">
@@ -1545,28 +1552,50 @@ export default function AdminPage() {
                         <div className="p-6 text-center text-zinc-500">{t('admin.noLogs')}</div>
                       ) : (
                         <div className="divide-y divide-black/5 dark:divide-white/5 transition-colors">
-                          {chatLogs.map((log) => (
+                          {chatLogs.map((log) => {
+                            const logUser = usersList.find(u => u.id === log.userId || u.discordId === log.userId || u.id === log.userEmail || u.discordId === log.userEmail);
+                            let displayName = logUser?.username || log.username;
+                            if (!displayName) {
+                              if (log.userEmail && log.userEmail.includes('@')) {
+                                displayName = log.userEmail;
+                              } else {
+                                displayName = 'Visitante';
+                              }
+                            }
+                            const displayPhoto = logUser?.photoURL || log.userPhotoURL;
+                            const isExpanded = expandedChatLogId === log.id;
+                            
+                            return (
                             <div key={log.id} className="p-4 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors">
                               <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center gap-2">
-                                  {log.userPhotoURL ? (
-                                    <img src={log.userPhotoURL} alt="Avatar" className="w-6 h-6 rounded-full object-cover" />
+                                  {displayPhoto ? (
+                                    <img src={displayPhoto} alt="Avatar" className="w-6 h-6 rounded-full object-cover" />
                                   ) : (
                                     <div className="w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
                                       <UserIcon className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
                                     </div>
                                   )}
-                                  <div className="text-sm font-medium text-zinc-900 dark:text-white">{log.username || (log.userEmail === 'Desconhecido' ? log.userId : log.userEmail)}</div>
+                                  <div className="text-sm font-medium text-zinc-900 dark:text-white">{displayName}</div>
                                 </div>
                                 <div className="text-xs text-zinc-500">
                                   {new Date(log.timestamp).toLocaleString(language === 'pt-BR' ? 'pt-BR' : 'en-US')}
                                 </div>
                               </div>
-                              <p className="text-sm text-zinc-700 dark:text-zinc-300 bg-white dark:bg-[#171717] p-3 rounded-lg border border-black/5 dark:border-white/5 transition-colors">
-                                {log.question}
-                              </p>
+                              <div 
+                                className={`text-sm text-zinc-700 dark:text-zinc-300 bg-white dark:bg-[#171717] p-3 rounded-lg border border-black/5 dark:border-white/5 transition-colors ${log.response ? 'cursor-pointer hover:border-black/20 dark:hover:border-white/20' : ''}`}
+                                onClick={() => log.response && setExpandedChatLogId(isExpanded ? null : log.id)}
+                              >
+                                <p>{log.question}</p>
+                                {isExpanded && log.response && (
+                                  <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5">
+                                    <p className="text-xs font-medium text-zinc-500 mb-1">Resposta do Bot:</p>
+                                    <p className="whitespace-pre-wrap">{log.response}</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          ))}
+                          )})}
                           <div className="p-4 flex items-center justify-between border-t border-black/5 dark:border-white/5">
                             <button
                               onClick={() => fetchChatLogs(chatLogsPage - 1)}

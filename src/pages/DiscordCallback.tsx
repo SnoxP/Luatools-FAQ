@@ -52,6 +52,21 @@ export default function DiscordCallback() {
           };
 
           localStorage.setItem('discord_user', JSON.stringify(userData));
+          
+          // Log the login action
+          try {
+            const { db, doc, setDoc } = await import('../firebase');
+            const logId = `log_${Date.now()}`;
+            await setDoc(doc(db, 'admin_logs', logId), {
+              action: 'login',
+              details: `Usuário entrou: ${userData.username} (${userData.discordId})`,
+              userEmail: firebaseUid,
+              timestamp: Date.now()
+            });
+          } catch (logErr) {
+            console.error("Failed to log login action", logErr);
+          }
+
           window.location.href = '/'; // Força o reload para o contexto pegar os dados atualizados
         } catch (firebaseErr: any) {
           console.error("Firebase Auth Error:", firebaseErr);
